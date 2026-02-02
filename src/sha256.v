@@ -1,0 +1,114 @@
+module sha256 (
+    input wire clk, rst_n;
+    input wire [511:0] data;
+    output reg [255:0] hash;
+    output wire done;
+);
+    localparam [2047:0] K = {
+        32'h428a2f98, 32'h71374491, 32'hb5c0fbcf, 32'he9b5dba5, 32'h3956c25b, 32'h59f111f1, 32'h923f82a4, 32'hab1c5ed5,
+        32'hd807aa98, 32'h12835b01, 32'h243185be, 32'h550c7dc3, 32'h72be5d74, 32'h80deb1fe, 32'h9bdc06a7, 32'hc19bf174,
+        32'he49b69c1, 32'hefbe4786, 32'h0fc19dc6, 32'h240ca1cc, 32'h2de92c6f, 32'h4a7484aa, 32'h5cb0a9dc, 32'h76f988da,
+        32'h983e5152, 32'ha831c66d, 32'hb00327c8, 32'hbf597fc7, 32'hc6e00bf3, 32'hd5a79147, 32'h06ca6351, 32'h14292967,
+        32'h27b70a85, 32'h2e1b2138, 32'h4d2c6dfc, 32'h53380d13, 32'h650a7354, 32'h766a0abb, 32'h81c2c92e, 32'h92722c85,
+        32'ha2bfe8a1, 32'ha81a664b, 32'hc24b8b70, 32'hc76c51a3, 32'hd192e819, 32'hd6990624, 32'hf40e3585, 32'h106aa070,
+        32'h19a4c116, 32'h1e376c08, 32'h2748774c, 32'h34b0bcb5, 32'h391c0cb3, 32'h4ed8aa4a, 32'h5b9cca4f, 32'h682e6ff3,
+        32'h748f82ee, 32'h78a5636f, 32'h84c87814, 32'h8cc70208, 32'h90befffa, 32'ha4506ceb, 32'hbef9a3f7, 32'hc67178f2
+    };
+
+    function [31:0] rotr;
+        input [31:0] x;
+        input integer n;
+        begin
+            rotr = (x >> n) | (x << 31 - n);
+        end
+    endfunction
+
+    function [31:0] rotl;
+        input [31:0] x;
+        input integer n;
+        begin
+            rotl = (x << n) | (x >> 31 - n);
+        end
+    endfunction
+
+    function [31:0] ch;
+        input x, y, z;
+        begin
+            ch = (x & y) ^ (~x & z);
+        end
+    endfunction
+
+    function [31:0] maj;
+        input x, y, z;
+        begin
+            maj = (x & y) ^ (x & z) ^ (y & z);
+        end
+    endfunction
+
+    function [31:0] S0;
+        input [31:0] x;
+        begin
+            S0 = rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22);
+        end
+    endfunction
+
+    function [31:0] S1;
+        input [31:0] x;
+        begin
+            S1 = rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25);
+        end
+    endfunction
+    
+    function [31:0] s0;
+        input [31:0] x;
+        begin
+            s0 = rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3);
+        end
+    endfunction
+    
+    function [31:0] s1;
+        input [31:0] x;
+        begin
+            s1 = rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10);
+        end
+    endfunction
+    
+    reg [31:0] a, b, c, d, e, f, g, h;
+    reg [31:0] t1, t2;
+    reg [2047:0] M;
+    reg [7:0] i;
+
+    assign done = (i == 128);
+
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            a = 32'h6a09e667;
+            b = 32'hbb67ae85;
+            c = 32'h3c6ef372;
+            d = 32'ha54ff53a;
+            e = 32'h510e527f;
+            f = 32'h9b05688c;
+            g = 32'h1f83d9ab;
+            h = 32'h5be0cd19;
+            i = 6'h0;
+        end else begin
+            if(i < 16) begin
+                M[i * 32] = data[i * 32];
+            end else if(i < 64) begin
+                M[i * 32] = s1(M[(i - 2) * 32]) + M[(i - 7) * 32] + s0(M[(i - 15) * 32]) + M[(i - 16) * 32];
+            end else if(i < 128) begin
+                t1 = h + S1(e) + ch(e, f, g) + K[(i - 64) * 32] + W[(i - 64) * 32];
+                t2 = S0(a) + maj(a, b, c);
+                h += g;
+                g += f;
+                f += e;
+                e += d + t1;
+                d += c;
+                c += b;
+                b += a;
+                a += t1 + t2;
+            end
+            if(i < 128) i++;
+        end
+    end
+endmodule
