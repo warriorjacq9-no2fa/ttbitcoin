@@ -1,8 +1,8 @@
 module sha256 (
-    input wire clk, rst_n;
-    input wire [511:0] data;
-    output reg [255:0] hash;
-    output wire done;
+    input wire clk, rst_n,
+    input wire [511:0] data,
+    output reg [255:0] hash,
+    output reg done
 );
     localparam [2047:0] K = {
         32'h428a2f98, 32'h71374491, 32'hb5c0fbcf, 32'he9b5dba5, 32'h3956c25b, 32'h59f111f1, 32'h923f82a4, 32'hab1c5ed5,
@@ -19,7 +19,7 @@ module sha256 (
         input [31:0] x;
         input integer n;
         begin
-            rotr = (x >> n) | (x << 31 - n);
+            rotr = (x >> n) | (x << (32 - n));
         end
     endfunction
 
@@ -27,19 +27,19 @@ module sha256 (
         input [31:0] x;
         input integer n;
         begin
-            rotl = (x << n) | (x >> 31 - n);
+            rotl = (x << n) | (x >> (32 - n));
         end
     endfunction
 
     function [31:0] ch;
-        input x, y, z;
+        input [31:0] x, y, z;
         begin
             ch = (x & y) ^ (~x & z);
         end
     endfunction
 
     function [31:0] maj;
-        input x, y, z;
+        input [31:0] x, y, z;
         begin
             maj = (x & y) ^ (x & z) ^ (y & z);
         end
@@ -74,41 +74,77 @@ module sha256 (
     endfunction
     
     reg [31:0] a, b, c, d, e, f, g, h;
+    reg [31:0] H0, H1, H2, H3, H4, H5, H6, H7;
     reg [31:0] t1, t2;
-    reg [2047:0] M;
+    reg [2047:0] W;
     reg [7:0] i;
-
-    assign done = (i == 128);
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-            a = 32'h6a09e667;
-            b = 32'hbb67ae85;
-            c = 32'h3c6ef372;
-            d = 32'ha54ff53a;
-            e = 32'h510e527f;
-            f = 32'h9b05688c;
-            g = 32'h1f83d9ab;
-            h = 32'h5be0cd19;
-            i = 6'h0;
+            H0 <= 32'h6a09e667;
+            H1 <= 32'hbb67ae85;
+            H2 <= 32'h3c6ef372;
+            H3 <= 32'ha54ff53a;
+            H4 <= 32'h510e527f;
+            H5 <= 32'h9b05688c;
+            H6 <= 32'h1f83d9ab;
+            H7 <= 32'h5be0cd19;
+            a <= 0; b <= 0; c <= 0; d <= 0;
+            e <= 0; f <= 0; g <= 0; h <= 0;
+            t1 <= 0; t2 <= 0;
+            i = 8'b0;
+            W <= 2048'b0;
+            done <= 0;
         end else begin
-            if(i < 16) begin
-                M[i * 32] = data[i * 32];
-            end else if(i < 64) begin
-                M[i * 32] = s1(M[(i - 2) * 32]) + M[(i - 7) * 32] + s0(M[(i - 15) * 32]) + M[(i - 16) * 32];
-            end else if(i < 128) begin
-                t1 = h + S1(e) + ch(e, f, g) + K[(i - 64) * 32] + W[(i - 64) * 32];
+            if(i[7:6] == 0) begin
+                if(i[5:0] < 16) begin
+                    W[i[5:0]*32 +: 32] <= data[i[5:0]*32 +: 32];
+                end else begin
+                    W[i[5:0]*32 +: 32] <=
+                        s1(W[(i[5:0]-2)*32 +: 32]) +
+                        W[(i[5:0]-7)*32 +: 32] +
+                        s0(W[(i[5:0]-15)*32 +: 32]) +
+                        W[(i[5:0]-16)*32 +: 32];
+                end
+                i++;
+            end else if(i[7:6] == 1) begin
+                a <= H0;
+                b <= H1;
+                c <= H2;
+                d <= H3;
+                e <= H4;
+                f <= H5;
+                g <= H6;
+                h <= H7;
+                i <= 8'h80;
+            end else if(i[7:6] == 2) begin
+                t1 = h + S1(e) + ch(e, f, g) + 
+                    K[i[5:0] * 32 +: 32] + 
+                    W[i[5:0] * 32 +: 32];
                 t2 = S0(a) + maj(a, b, c);
-                h += g;
-                g += f;
-                f += e;
-                e += d + t1;
-                d += c;
-                c += b;
-                b += a;
-                a += t1 + t2;
+                h <= g;
+                g <= f;
+                f <= e;
+                e <= d + t1;
+                d <= c;
+                c <= b;
+                b <= a;
+                a <= t1 + t2;
+                i++;
+            end else if(i == 8'b11000000) begin
+                H0 <= a + H0;
+                H1 <= b + H1;
+                H2 <= c + H2;
+                H3 <= d + H3;
+                H4 <= e + H4;
+                H5 <= f + H5;
+                H6 <= g + H6;
+                H7 <= h + H7;
+                i++;
+            end else begin
+                hash <= {H7, H6, H5, H4, H3, H2, H1, H0};
+                done <= 1;
             end
-            if(i < 128) i++;
         end
     end
 endmodule
