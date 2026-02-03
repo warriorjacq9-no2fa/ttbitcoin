@@ -1,58 +1,79 @@
-`timescale 1ns/1ps
+`timescale 1ns / 1ps
 
 module tb;
 
-    // DUT signals
-    logic         clk;
-    logic         rst_n;
-    logic [511:0] data;
-    wire  [255:0] hash;
-    wire          done;
+    reg clk;
+    reg rst_n;
+    reg [511:0] data;
+    wire [255:0] hash;
+    wire done;
 
-    // Instantiate DUT
+    // DUT
     sha256 dut (
-        .clk  (clk),
+        .clk(clk),
         .rst_n(rst_n),
-        .data (data),
-        .hash (hash),
-        .done (done)
+        .data(data),
+        .hash(hash),
+        .done(done)
     );
 
     // Clock generation: 100 MHz
     always #5 clk = ~clk;
 
-    // Expected hash for "abc"
-    localparam logic [255:0] EXPECTED_HASH =
-        256'hba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad;
+    // Golden hash for "abc"
+    localparam [255:0] GOLDEN_HASH =
+        256'h315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3;
+
+    // --------------------------
+    // Helper task to convert a string to SHA-256 padded 512-bit block
+    // --------------------------
+    task string_to_block(input string msg, output reg [511:0] block);
+        integer i;
+        integer msg_len;
+        reg [63:0] bit_len;
+        begin
+            block = 512'b0;
+            msg_len = msg.len();          // number of bytes
+            bit_len = msg_len * 8;       // message length in bits
+
+            // Copy message bytes into the MSBs of the block
+            for (i = 0; i < msg_len; i = i + 1) begin
+                block[511 - i*8 -: 8] = msg[i];
+            end
+
+            // Add the 0x80 bit right after the message
+            block[511 - msg_len*8 -: 8] = {1'b1, 7'b0};
+
+            // Append message length in bits at the last 64 bits
+            block[63:0] = bit_len;
+        end
+    endtask
 
     initial begin
-        $dumpfile("tb.vcd");
-        $dumpvars(0, tb);
-        // Init
-        clk  = 0;
-        rst_n = 1;
-        data = 512'h0;
-
-        // Reset pulse
-        #10;
+        clk = 0;
         rst_n = 0;
-        #10;
-        rst_n = 1;
+        data = 512'b0;
 
-        // Apply padded "abc" block
-        // "abc" = 0x61 62 63
-        // Padding: 0x80 ... length = 24 bits
-        data = 512'h61626380_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000018;
+        // --------------------------------------------------
+        // Message = "abc"
+        // Use helper task to automatically pad
+        // --------------------------------------------------
+        string_to_block("Hello, world!", data);
+
+        // Release reset
+        #20;
+        rst_n = 1;
 
         // Wait for completion
-        wait (done === 1'b1);
-        #1;
+        wait(done);
+
+        // Small delay to let hash settle
+        #10;
 
         // Check result
-        $display("Result:   %h", hash);
-        $display("Expected: %h", EXPECTED_HASH);
+        $display("Expected: %h", GOLDEN_HASH);
+        $display("Got     : %h", hash);
 
-        #20;
         $finish;
     end
 

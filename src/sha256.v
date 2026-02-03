@@ -72,6 +72,14 @@ module sha256 (
             s1 = rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10);
         end
     endfunction
+
+    function [31:0] K_at(input [5:0] idx);
+        K_at = K[(63-idx)*32 +: 32];
+    endfunction
+
+    function [31:0] W_at(input [5:0] idx);
+        W_at = W[(63-idx)*32 +: 32];
+    endfunction
     
     reg [31:0] a, b, c, d, e, f, g, h;
     reg [31:0] H0, H1, H2, H3, H4, H5, H6, H7;
@@ -96,15 +104,15 @@ module sha256 (
             W <= 2048'b0;
             done <= 0;
         end else begin
-            if(i[7:6] == 0) begin
+            if((i[7:6] == 0)) begin
                 if(i[5:0] < 16) begin
-                    W[i[5:0]*32 +: 32] <= data[i[5:0]*32 +: 32];
+                    W[(63 - i[5:0]) * 32 +: 32] <= data[511 - i*32 -: 32];
                 end else begin
-                    W[i[5:0]*32 +: 32] <=
-                        s1(W[(i[5:0]-2)*32 +: 32]) +
-                        W[(i[5:0]-7)*32 +: 32] +
-                        s0(W[(i[5:0]-15)*32 +: 32]) +
-                        W[(i[5:0]-16)*32 +: 32];
+                    W[(63 - i[5:0]) * 32 +: 32] <=
+                        s1(W_at(i[5:0]-2)) +
+                        W_at(i[5:0]-7) +
+                        s0(W_at(i[5:0]-15)) +
+                        W_at(i[5:0]-16);
                 end
                 i++;
             end else if(i[7:6] == 1) begin
@@ -119,8 +127,8 @@ module sha256 (
                 i <= 8'h80;
             end else if(i[7:6] == 2) begin
                 t1 = h + S1(e) + ch(e, f, g) + 
-                    K[i[5:0] * 32 +: 32] + 
-                    W[i[5:0] * 32 +: 32];
+                    K_at(i[5:0]) + 
+                    W_at(i[5:0]);
                 t2 = S0(a) + maj(a, b, c);
                 h <= g;
                 g <= f;
@@ -142,7 +150,7 @@ module sha256 (
                 H7 <= h + H7;
                 i++;
             end else begin
-                hash <= {H7, H6, H5, H4, H3, H2, H1, H0};
+                hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
                 done <= 1;
             end
         end

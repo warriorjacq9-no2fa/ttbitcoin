@@ -8,7 +8,7 @@ all: tb.vvp
 	vvp $<
 
 tb.vvp: $(SRCS)
-	iverilog $(SRCS) -o $@
+	iverilog -g2012 $(SRCS) -o $@
 
 clean:
 	rm -f tb.vvp tb.vcd
