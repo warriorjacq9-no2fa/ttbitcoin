@@ -1,6 +1,6 @@
 module sha256 (
     input wire clk, rst_n,
-    input wire [511:0] data,
+    input wire [639:0] block,
     output reg [255:0] hash,
     output reg done
 );
@@ -81,11 +81,20 @@ module sha256 (
         W_at = W[(63-idx)*32 +: 32];
     endfunction
     
+    /* ----- Size and Endianness Correction ----- */
+    wire [1023:0] data = {
+        block[639:0],
+        8'h80,
+        376'h0280
+    };
+
+    /* ----- SHA256 Calculation ----- */
     reg [31:0] a, b, c, d, e, f, g, h;
     reg [31:0] H0, H1, H2, H3, H4, H5, H6, H7;
     reg [31:0] t1, t2;
     reg [2047:0] W;
     reg [7:0] i;
+    reg j;
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
@@ -101,12 +110,13 @@ module sha256 (
             e <= 0; f <= 0; g <= 0; h <= 0;
             t1 <= 0; t2 <= 0;
             i = 8'b0;
+            j = 1'b0;
             W <= 2048'b0;
             done <= 0;
         end else begin
             if((i[7:6] == 0)) begin
                 if(i[5:0] < 16) begin
-                    W[(63 - i[5:0]) * 32 +: 32] <= data[511 - i*32 -: 32];
+                    W[(63 - i[5:0]) * 32 +: 32] <= data[(1023 - j*512 - i*32) -: 32];
                 end else begin
                     W[(63 - i[5:0]) * 32 +: 32] <=
                         s1(W_at(i[5:0]-2)) +
@@ -150,8 +160,13 @@ module sha256 (
                 H7 <= h + H7;
                 i++;
             end else begin
-                hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
-                done <= 1;
+                if(j == 0) begin
+                    j++;
+                    i = 8'b0;
+                end else begin
+                    hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
+                    done <= 1;
+                end
             end
         end
     end

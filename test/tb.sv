@@ -4,7 +4,7 @@ module tb;
 
     reg clk;
     reg rst_n;
-    reg [511:0] data;
+    reg [639:0] data;
     wire [255:0] hash;
     wire done;
 
@@ -12,7 +12,7 @@ module tb;
     sha256 dut (
         .clk(clk),
         .rst_n(rst_n),
-        .data(data),
+        .block(data),
         .hash(hash),
         .done(done)
     );
@@ -20,9 +20,9 @@ module tb;
     // Clock generation: 100 MHz
     always #5 clk = ~clk;
 
-    // Golden hash for "abc"
+    // Golden hash for Bitcoin genesis block
     localparam [255:0] GOLDEN_HASH =
-        256'h315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3;
+        256'haf42031e805ff493a07341e2f74ff58149d22ab9ba19f61343e2c86c71c5d66d;
 
     // --------------------------
     // Helper task to convert a string to SHA-256 padded 512-bit block
@@ -50,16 +50,11 @@ module tb;
     endtask
 
     initial begin
+        $dumpfile("tb.vcd");
+        $dumpvars(0, tb);
         clk = 0;
         rst_n = 0;
-        data = 512'b0;
-
-        // --------------------------------------------------
-        // Message = "abc"
-        // Use helper task to automatically pad
-        // --------------------------------------------------
-        string_to_block("Hello, world!", data);
-
+        data = 640'h0100000000000000000000000000000000000000000000000000000000000000000000003BA3EDFD7A7B12B27AC72C3E67768F617FC81BC3888A51323A9FB8AA4B1E5E4A29AB5F49FFFF001D1DAC2B7C;
         // Release reset
         #20;
         rst_n = 1;
