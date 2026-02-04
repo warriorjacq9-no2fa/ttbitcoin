@@ -93,8 +93,16 @@ module sha256 (
     reg [31:0] H0, H1, H2, H3, H4, H5, H6, H7;
     reg [31:0] t1, t2;
     reg [2047:0] W;
+    reg [255:0] int_hash;
+    wire [511:0] int_data = {
+        int_hash,
+        8'h80,
+        248'h0100
+    };
+    // Hash state machine
     reg [7:0] i;
-    reg j;
+    // High-level state machine
+    reg [1:0] j;
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
@@ -112,11 +120,16 @@ module sha256 (
             i = 8'b0;
             j = 1'b0;
             W <= 2048'b0;
+            int_hash <= 255'b0;
             done <= 0;
         end else begin
             if((i[7:6] == 0)) begin
                 if(i[5:0] < 16) begin
-                    W[(63 - i[5:0]) * 32 +: 32] <= data[(1023 - j*512 - i*32) -: 32];
+                    if(j > 1) begin
+                        W[(63 - i[5:0]) * 32 +: 32] <= int_data[(511 - i*32) -: 32];
+                    end else begin
+                        W[(63 - i[5:0]) * 32 +: 32] <= data[(1023 - j*512 - i*32) -: 32];
+                    end
                 end else begin
                     W[(63 - i[5:0]) * 32 +: 32] <=
                         s1(W_at(i[5:0]-2)) +
@@ -160,12 +173,29 @@ module sha256 (
                 H7 <= h + H7;
                 i++;
             end else begin
-                if(j == 0) begin
+                if(j == 0) begin // Finished first block
                     j++;
                     i = 8'b0;
-                end else begin
+                end else if(j == 1) begin // Finished second block
+                    int_hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
+                    j++;
+                    // Reset SHA256 state and start new hash
+                    H0 <= 32'h6a09e667;
+                    H1 <= 32'hbb67ae85;
+                    H2 <= 32'h3c6ef372;
+                    H3 <= 32'ha54ff53a;
+                    H4 <= 32'h510e527f;
+                    H5 <= 32'h9b05688c;
+                    H6 <= 32'h1f83d9ab;
+                    H7 <= 32'h5be0cd19;
+                    a <= 0; b <= 0; c <= 0; d <= 0;
+                    e <= 0; f <= 0; g <= 0; h <= 0;
+                    t1 <= 0; t2 <= 0;
+                    i <= 0;
+                end else if(j == 2) begin
                     hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
                     done <= 1;
+                    j++;
                 end
             end
         end

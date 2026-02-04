@@ -22,7 +22,7 @@ module tb;
 
     // Golden hash for Bitcoin genesis block
     localparam [255:0] GOLDEN_HASH =
-        256'haf42031e805ff493a07341e2f74ff58149d22ab9ba19f61343e2c86c71c5d66d;
+        256'h6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000;
 
     // --------------------------
     // Helper task to convert a string to SHA-256 padded 512-bit block
