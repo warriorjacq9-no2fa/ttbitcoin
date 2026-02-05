@@ -31,7 +31,7 @@ pinout:
   ui[4]: "DI12"
   ui[5]: "DI13"
   ui[6]: "DI14"
-  ui[7]: "DI15/LATCH"
+  ui[7]: "DI15/ACK"
 
   # Outputs
   uo[0]: "A0"

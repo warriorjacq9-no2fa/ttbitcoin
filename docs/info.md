@@ -18,14 +18,14 @@ To use this project, you need a program which can provide block templates, usual
 | --- | ----------- |
 | DI/O0..7 | Bidirectional data bus |
 | DI8..14 | High byte of data input bus |
-| DI15/LATCH | Functions as data strobe when RQ is active |
+| DI15/ACK | Functions as an acknowledge when reading bytes from the device |
 | A0..5 | address output bus |
 | DONE | Signals block completion, active high |
 | RQ | Signals data request, active high |
 
 All addresses are for 16-bit words
 
-To input a block template to the design listen on A0..5. Respond on DI/O0..7 and DI8..15 and hold LATCH high to input a byte. Send bytes according to this memory map:
+To input a block template to the design listen on RQ for a request and A0..5 for the address. Respond on DI/O0..7 and DI8..15 while RQ is high (you have to present valid data before the next clock rising edge). Send bytes according to this memory map:
 
 | Address range | Data |
 | ------- | ---- |
@@ -45,7 +45,7 @@ When DONE goes high, the nonce will be outputted on DI/O0..7 according to this m
 | 0x02 | Bits 15-23 |
 | 0x03 | Bits 24-31 |
 
-In this state, LATCH is used as a data acknowledge input after each byte, and RQ is used as a data-ready signal
+In this state, ACK is used as a data acknowledge input after each byte, and RQ is used as a data-ready signal. DONE will go high again when there is no data left.
 
 ## External hardware
 
