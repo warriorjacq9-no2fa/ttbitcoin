@@ -17,14 +17,15 @@ To use this project, you need a program which can provide block templates, usual
 | Pin | Description |
 | --- | ----------- |
 | DI/O0..7 | Bidirectional data bus |
-| DI8/MUX | Data input 8 / Multiplex input <br/> Multiplexes the DO8..15 and A0..5/DONE signals |
-| DI9..15 | High byte of data input bus |
-| DO8..15/A0..5 | Multiplexed data/address output bus |
-| DO14/DONE | The DONE signal goes high when a nonce has been found |
+| DI8..14 | High byte of data input bus |
+| DI15/LATCH | Functions as data strobe when RQ is active |
+| A0..5 | address output bus |
+| DONE | Signals block completion, active high |
+| RQ | Signals data request, active high |
 
 All addresses are for 16-bit words
 
-To input a block template to the design, release MUX and listen on A0..5. Respond on DI/O0..7 and DI8..15 according to this memory map:
+To input a block template to the design listen on A0..5. Respond on DI/O0..7 and DI8..15 and hold LATCH high to input a byte. Send bytes according to this memory map:
 
 | Address range | Data |
 | ------- | ---- |
@@ -33,7 +34,7 @@ To input a block template to the design, release MUX and listen on A0..5. Respon
 | 0x12-0x22 | Merkle root |
 | 0x22-0x23 | Timestamp |
 | 0x24-0x25 | nBits |
-| 0x26-0x27 | Zero |
+| 0x26-0x27 | Zero or starting nonce |
 
 When DONE goes high, the nonce will be outputted on DI/O0..7 according to this memory map:
 
@@ -44,6 +45,7 @@ When DONE goes high, the nonce will be outputted on DI/O0..7 according to this m
 | 0x02 | Bits 15-23 |
 | 0x03 | Bits 24-31 |
 
+In this state, LATCH is used as a data acknowledge input after each byte, and RQ is used as a data-ready signal
 
 ## External hardware
 

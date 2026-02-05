@@ -1,9 +1,39 @@
+/* 
+ * Copyright (C) 2026 Jack Flusche <jackflusche@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+
 module sha256 (
     input wire clk, rst_n,
+    input wire start,
     input wire [639:0] block,
     output reg [255:0] hash,
     output reg done
 );
+    /* Run logic */
+    reg run;
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            run <= 1'b0;
+        end else begin
+            if(start) run <= 1'b1;
+        end
+    end
+
     localparam [2047:0] K = {
         32'h428a2f98, 32'h71374491, 32'hb5c0fbcf, 32'he9b5dba5, 32'h3956c25b, 32'h59f111f1, 32'h923f82a4, 32'hab1c5ed5,
         32'hd807aa98, 32'h12835b01, 32'h243185be, 32'h550c7dc3, 32'h72be5d74, 32'h80deb1fe, 32'h9bdc06a7, 32'hc19bf174,
@@ -123,79 +153,81 @@ module sha256 (
             int_hash <= 255'b0;
             done <= 0;
         end else begin
-            if((i[7:6] == 0)) begin
-                if(i[5:0] < 16) begin
-                    if(j > 1) begin
-                        W[(63 - i[5:0]) * 32 +: 32] <= int_data[(511 - i*32) -: 32];
+            if(run) begin
+                if((i[7:6] == 0)) begin
+                    if(i[5:0] < 16) begin
+                        if(j > 1) begin
+                            W[(63 - i[5:0]) * 32 +: 32] <= int_data[(511 - i*32) -: 32];
+                        end else begin
+                            W[(63 - i[5:0]) * 32 +: 32] <= data[(1023 - j*512 - i*32) -: 32];
+                        end
                     end else begin
-                        W[(63 - i[5:0]) * 32 +: 32] <= data[(1023 - j*512 - i*32) -: 32];
+                        W[(63 - i[5:0]) * 32 +: 32] <=
+                            s1(W_at(i[5:0]-2)) +
+                            W_at(i[5:0]-7) +
+                            s0(W_at(i[5:0]-15)) +
+                            W_at(i[5:0]-16);
                     end
+                    i++;
+                end else if(i[7:6] == 1) begin
+                    a <= H0;
+                    b <= H1;
+                    c <= H2;
+                    d <= H3;
+                    e <= H4;
+                    f <= H5;
+                    g <= H6;
+                    h <= H7;
+                    i <= 8'h80;
+                end else if(i[7:6] == 2) begin
+                    t1 = h + S1(e) + ch(e, f, g) + 
+                        K_at(i[5:0]) + 
+                        W_at(i[5:0]);
+                    t2 = S0(a) + maj(a, b, c);
+                    h <= g;
+                    g <= f;
+                    f <= e;
+                    e <= d + t1;
+                    d <= c;
+                    c <= b;
+                    b <= a;
+                    a <= t1 + t2;
+                    i++;
+                end else if(i == 8'b11000000) begin
+                    H0 <= a + H0;
+                    H1 <= b + H1;
+                    H2 <= c + H2;
+                    H3 <= d + H3;
+                    H4 <= e + H4;
+                    H5 <= f + H5;
+                    H6 <= g + H6;
+                    H7 <= h + H7;
+                    i++;
                 end else begin
-                    W[(63 - i[5:0]) * 32 +: 32] <=
-                        s1(W_at(i[5:0]-2)) +
-                        W_at(i[5:0]-7) +
-                        s0(W_at(i[5:0]-15)) +
-                        W_at(i[5:0]-16);
-                end
-                i++;
-            end else if(i[7:6] == 1) begin
-                a <= H0;
-                b <= H1;
-                c <= H2;
-                d <= H3;
-                e <= H4;
-                f <= H5;
-                g <= H6;
-                h <= H7;
-                i <= 8'h80;
-            end else if(i[7:6] == 2) begin
-                t1 = h + S1(e) + ch(e, f, g) + 
-                    K_at(i[5:0]) + 
-                    W_at(i[5:0]);
-                t2 = S0(a) + maj(a, b, c);
-                h <= g;
-                g <= f;
-                f <= e;
-                e <= d + t1;
-                d <= c;
-                c <= b;
-                b <= a;
-                a <= t1 + t2;
-                i++;
-            end else if(i == 8'b11000000) begin
-                H0 <= a + H0;
-                H1 <= b + H1;
-                H2 <= c + H2;
-                H3 <= d + H3;
-                H4 <= e + H4;
-                H5 <= f + H5;
-                H6 <= g + H6;
-                H7 <= h + H7;
-                i++;
-            end else begin
-                if(j == 0) begin // Finished first block
-                    j++;
-                    i = 8'b0;
-                end else if(j == 1) begin // Finished second block
-                    int_hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
-                    j++;
-                    // Reset SHA256 state and start new hash
-                    H0 <= 32'h6a09e667;
-                    H1 <= 32'hbb67ae85;
-                    H2 <= 32'h3c6ef372;
-                    H3 <= 32'ha54ff53a;
-                    H4 <= 32'h510e527f;
-                    H5 <= 32'h9b05688c;
-                    H6 <= 32'h1f83d9ab;
-                    H7 <= 32'h5be0cd19;
-                    a <= 0; b <= 0; c <= 0; d <= 0;
-                    e <= 0; f <= 0; g <= 0; h <= 0;
-                    t1 <= 0; t2 <= 0;
-                    i <= 0;
-                end else if(j == 2) begin
-                    hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
-                    done <= 1;
-                    j++;
+                    if(j == 0) begin // Finished first block
+                        j++;
+                        i = 8'b0;
+                    end else if(j == 1) begin // Finished second block
+                        int_hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
+                        j++;
+                        // Reset SHA256 state and start new hash
+                        H0 <= 32'h6a09e667;
+                        H1 <= 32'hbb67ae85;
+                        H2 <= 32'h3c6ef372;
+                        H3 <= 32'ha54ff53a;
+                        H4 <= 32'h510e527f;
+                        H5 <= 32'h9b05688c;
+                        H6 <= 32'h1f83d9ab;
+                        H7 <= 32'h5be0cd19;
+                        a <= 0; b <= 0; c <= 0; d <= 0;
+                        e <= 0; f <= 0; g <= 0; h <= 0;
+                        t1 <= 0; t2 <= 0;
+                        i <= 0;
+                    end else if(j == 2) begin
+                        hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
+                        done <= 1;
+                        j++;
+                    end
                 end
             end
         end

@@ -1,74 +1,136 @@
-`timescale 1ns / 1ps
+`timescale 1ns/1ps
 
 module tb;
 
-    reg clk;
-    reg rst_n;
-    reg [639:0] data;
-    wire [255:0] hash;
-    wire done;
+    reg  clk;
+    reg  rst_n;
 
-    // DUT
-    sha256 dut (
+    reg  [7:0] ui_in;
+    reg  [7:0] uio_in;
+    wire [7:0] uo_out;
+    wire [7:0] uio_out;
+    wire [7:0] uio_oe;
+
+    tt_um_bitcoin dut (
+        .ui_in(ui_in),
+        .uo_out(uo_out),
+        .uio_in(uio_in),
+        .uio_out(uio_out),
+        .uio_oe(uio_oe),
+        .ena(1'b1),
         .clk(clk),
-        .rst_n(rst_n),
-        .block(data),
-        .hash(hash),
-        .done(done)
+        .rst_n(rst_n)
     );
 
-    // Clock generation: 100 MHz
+    // Clock
     always #5 clk = ~clk;
 
-    // Golden hash for Bitcoin genesis block
-    localparam [255:0] GOLDEN_HASH =
-        256'h6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000;
+    // Decode outputs
+    wire [5:0] addr = uo_out[5:0];
+    wire done = uo_out[6];
+    wire rq   = uo_out[7];
 
-    // --------------------------
-    // Helper task to convert a string to SHA-256 padded 512-bit block
-    // --------------------------
-    task string_to_block(input string msg, output reg [511:0] block);
-        integer i;
-        integer msg_len;
-        reg [63:0] bit_len;
+    reg [639:0] block = 
+    640'h0100000000000000000000000000000000000000000000000000000000000000000000003BA3EDFD7A7B12B27AC72C3E67768F617FC81BC3888A51323A9FB8AA4B1E5E4A29AB5F49FFFF001D1DAC2B7C;
+
+    reg [255:0] out;
+
+    reg running;
+    integer cycles = 0;
+
+    always @(posedge clk) begin
+        if(running) begin
+            cycles++;
+        end
+    end
+
+    function string human_readable(longint unsigned value);
+        string suffix;
+        real scaled;
+
+        if (value >= 1_000_000_000) begin
+            scaled = value / 1_000_000_000.0;
+            suffix = "G";
+        end
+        else if (value >= 1_000_000) begin
+            scaled = value / 1_000_000.0;
+            suffix = "M";
+        end
+        else if (value >= 1_000) begin
+            scaled = value / 1_000.0;
+            suffix = "K";
+        end
+        else begin
+            return $sformatf("%0d", value);
+        end
+
+        return $sformatf("%.1f%s", scaled, suffix);
+    endfunction
+
+    // Task: write one 16-bit word
+    task write_word(input [15:0] w);
         begin
-            block = 512'b0;
-            msg_len = msg.len();          // number of bytes
-            bit_len = msg_len * 8;       // message length in bits
+            // Wait for request
+            wait (rq == 1'b1);
 
-            // Copy message bytes into the MSBs of the block
-            for (i = 0; i < msg_len; i = i + 1) begin
-                block[511 - i*8 -: 8] = msg[i];
-            end
-
-            // Add the 0x80 bit right after the message
-            block[511 - msg_len*8 -: 8] = {1'b1, 7'b0};
-
-            // Append message length in bits at the last 64 bits
-            block[63:0] = bit_len;
+            // Drive data
+            ui_in  <= w[15:8];   // DI8..15
+            uio_in <= w[7:0];    // DI/O0..7
+            wait (rq == 1'b0);
         end
     endtask
+
+    task read_word(output [255:0] s);
+        begin
+            // Wait for data-ready
+            wait (rq == 1'b1);
+
+            // Read data
+            s[(255 - addr*8) -: 8] <= uio_out[7:0];
+
+            // Acknowledge
+            ui_in[7] <= 1'b1;
+            wait (rq == 1'b0);
+            ui_in[7] <= 1'b0;
+        end
+    endtask
+
+    integer i;
 
     initial begin
         $dumpfile("tb.vcd");
         $dumpvars(0, tb);
-        clk = 0;
+        clk   = 0;
         rst_n = 0;
-        data = 640'h0100000000000000000000000000000000000000000000000000000000000000000000003BA3EDFD7A7B12B27AC72C3E67768F617FC81BC3888A51323A9FB8AA4B1E5E4A29AB5F49FFFF001D1DAC2B7C;
-        // Release reset
+        ui_in = 8'h00;
+        uio_in = 8'h00;
+        out = 256'b0;
+
         #20;
         rst_n = 1;
+        running = 1;
 
-        // Wait for completion
-        wait(done);
+        // Send 40 words
+        for (i = 0; i < 40; i = i + 1) begin
+            write_word(block[(639 - i*16) -: 16]);
+        end
+        // Wait for DONE
+        wait (done == 1'b1);
 
-        // Small delay to let hash settle
-        #10;
+        while (addr < 32) begin
+            read_word(out);
+        end
+        running = 0;
 
-        // Check result
-        $display("Expected: %h", GOLDEN_HASH);
-        $display("Got     : %h", hash);
+        $display("Device recieved   %h\n", dut.block);
+        $display("Expected          %h", block);
 
+        $display("Hash output       %h\n", out);
+
+        $display("Took      %d cycles (%sH/s)",
+            cycles, human_readable(200000000.0/cycles));
+
+        #50;
         $finish;
     end
 

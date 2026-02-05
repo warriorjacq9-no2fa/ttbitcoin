@@ -2,6 +2,7 @@
 
 SRCS = \
 test/tb.sv \
+src/main.v \
 src/sha256.v
 
 all: tb.vvp

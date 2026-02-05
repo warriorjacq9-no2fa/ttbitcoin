@@ -31,7 +31,7 @@ pinout:
   ui[4]: "DI12"
   ui[5]: "DI13"
   ui[6]: "DI14"
-  ui[7]: "DI15"
+  ui[7]: "DI15/LATCH"
 
   # Outputs
   uo[0]: "A0"
@@ -41,7 +41,7 @@ pinout:
   uo[4]: "A4"
   uo[5]: "A5"
   uo[6]: "DONE"
-  uo[7]: ""
+  uo[7]: "RQ"
 
   # Bidirectional pins
   uio[0]: "DI/O0"
