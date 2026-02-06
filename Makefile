@@ -1,8 +1,7 @@
 .PHONY: all clean
 
 SRCS = \
-test/tb.sv \
-src/main.v \
+test/tb_sha256.sv \
 src/sha256.v
 
 all: tb.vvp

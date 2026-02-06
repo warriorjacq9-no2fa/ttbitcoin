@@ -18,7 +18,7 @@
 
 `timescale 1ns / 1ps
 
-module tb_sha256;
+module tb;
 
     reg clk;
     reg rst_n;
@@ -72,6 +72,22 @@ module tb_sha256;
     initial begin
         $dumpfile("tb.vcd");
         $dumpvars(0, tb);
+        /*$dumpvars(0, tb.dut.W[0]);
+        $dumpvars(0, tb.dut.W[1]);
+        $dumpvars(0, tb.dut.W[2]);
+        $dumpvars(0, tb.dut.W[3]);
+        $dumpvars(0, tb.dut.W[4]);
+        $dumpvars(0, tb.dut.W[5]);
+        $dumpvars(0, tb.dut.W[6]);
+        $dumpvars(0, tb.dut.W[7]);
+        $dumpvars(0, tb.dut.W[8]);
+        $dumpvars(0, tb.dut.W[9]);
+        $dumpvars(0, tb.dut.W[10]);
+        $dumpvars(0, tb.dut.W[11]);
+        $dumpvars(0, tb.dut.W[12]);
+        $dumpvars(0, tb.dut.W[13]);
+        $dumpvars(0, tb.dut.W[14]);
+        $dumpvars(0, tb.dut.W[15]);*/
         clk = 0;
         rst_n = 0;
         start = 0;

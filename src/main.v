@@ -121,7 +121,8 @@ module tt_um_bitcoin (
                 end
             endcase
         end
-    end 
+    end
 
+    wire _unused = &{ena};
     
 endmodule
