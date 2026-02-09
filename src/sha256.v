@@ -34,7 +34,9 @@ module sha256 (
         end
     end
 
-    localparam [2047:0] K = {
+    reg [31:0] K [0:64];
+
+    localparam [2047:0] INIT_K = {
         32'h428a2f98, 32'h71374491, 32'hb5c0fbcf, 32'he9b5dba5, 32'h3956c25b, 32'h59f111f1, 32'h923f82a4, 32'hab1c5ed5,
         32'hd807aa98, 32'h12835b01, 32'h243185be, 32'h550c7dc3, 32'h72be5d74, 32'h80deb1fe, 32'h9bdc06a7, 32'hc19bf174,
         32'he49b69c1, 32'hefbe4786, 32'h0fc19dc6, 32'h240ca1cc, 32'h2de92c6f, 32'h4a7484aa, 32'h5cb0a9dc, 32'h76f988da,
@@ -44,6 +46,12 @@ module sha256 (
         32'h19a4c116, 32'h1e376c08, 32'h2748774c, 32'h34b0bcb5, 32'h391c0cb3, 32'h4ed8aa4a, 32'h5b9cca4f, 32'h682e6ff3,
         32'h748f82ee, 32'h78a5636f, 32'h84c87814, 32'h8cc70208, 32'h90befffa, 32'ha4506ceb, 32'hbef9a3f7, 32'hc67178f2
     };
+
+    initial begin
+        for (i = 0; i < 64; i = i + 1)
+            K[i] = INIT_K[(63 - i) * 32 +: 32];
+    end
+
     `define rotr(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
     wire [31:0] ch_e = (e & f) ^ (~e & g);
     wire [31:0] maj_a = (a & b) ^ (a & c) ^ (b & c);
@@ -52,9 +60,6 @@ module sha256 (
     wire [31:0] S1_e = {e[5:0],e[31:6]} ^ {e[10:0],e[31:11]} ^ {e[24:0],e[31:25]};
     `define s0(x) (`rotr((x), 7) ^ `rotr((x), 18) ^ ((x) >> 3))
     `define s1(x) (`rotr((x), 17) ^ `rotr((x), 19) ^ ((x) >> 10))
-
-    `define K_at(idx) (K[(63 - (idx)) * 32 +: 32])
-    `define W_at(idx) (W[(63 - (idx)) * 32 +: 32])
     
     /* ----- Size and Endianness Correction ----- */
     wire [1023:0] data = {
@@ -67,20 +72,32 @@ module sha256 (
     reg [31:0] a, b, c, d, e, f, g, h;
     reg [31:0] H0, H1, H2, H3, H4, H5, H6, H7;
     wire [31:0] t1 = h + S1_e + ch_e + 
-                        `K_at(i[5:0]) + 
-                        `W_at(i[5:0]);
+                        K[i] + Wt;
     wire [31:0] t2 = S0_a + maj_a;
-    reg [2047:0] W;
+    reg [31:0] W [0:15];
+    wire [31:0] Wt = (i > 15 ?
+        `s1(W[14]) +
+        W[9] +
+        `s0(W[1]) +
+        W[0]
+        : W[i]
+    );
     reg [255:0] int_hash;
     wire [511:0] int_data = {
         int_hash,
         8'h80,
         248'h0100
     };
-    // Hash state machine
-    reg [7:0] i;
-    // High-level state machine
-    reg [1:0] j;
+    // State machine
+    localparam S_SCHEDULE=0, S_INIT=1, S_COMPUTE=2;
+    localparam S_OUT=3, S_NEXT=4, S_DONE=5;
+    reg [4:0] state;
+    // To track iteration for 640-bit double-SHA
+    localparam I_BLOCK1=0, I_BLOCK2=1, I_DOUBLE=2, I_DONE=3;
+    reg [1:0] iteration;
+
+    // Round counter
+    reg [5:0] i;
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
@@ -94,29 +111,40 @@ module sha256 (
             H7 <= 32'h5be0cd19;
             a <= 0; b <= 0; c <= 0; d <= 0;
             e <= 0; f <= 0; g <= 0; h <= 0;
-            i <= 8'b0;
-            j <= 2'b0;
-            W <= 2048'b0;
+            i <= 5'b0;
+            W[0] <= 32'b0;
+            W[1] <= 32'b0;
+            W[2] <= 32'b0;
+            W[3] <= 32'b0;
+            W[4] <= 32'b0;
+            W[5] <= 32'b0;
+            W[6] <= 32'b0;
+            W[7] <= 32'b0;
+            W[8] <= 32'b0;
+            W[9] <= 32'b0;
+            W[10] <= 32'b0;
+            W[11] <= 32'b0;
+            W[12] <= 32'b0;
+            W[13] <= 32'b0;
+            W[14] <= 32'b0;
+            W[15] <= 32'b0;
             int_hash <= 256'b0;
             done <= 0;
         end else begin
             if(run) begin
-                if((i[7:6] == 0)) begin
-                    if(i[5:0] < 16) begin
-                        if(j > 1) begin
-                            W[(63 - i[5:0]) * 32 +: 32] <= int_data[(511 - i*32) -: 32];
+                if(state == S_SCHEDULE) begin
+                    if(i < 16) begin
+                        if(iteration == I_DOUBLE) begin
+                            W[i[5:0]] <= int_data[(511 - i*32) -: 32];
                         end else begin
-                            W[(63 - i[5:0]) * 32 +: 32] <= data[(1023 - j*512 - i*32) -: 32];
+                            W[i[5:0]] <= data[(1023 - iteration*512 - i*32) -: 32];
                         end
+                        i <= i + 1;
                     end else begin
-                        W[(63 - i[5:0]) * 32 +: 32] <=
-                            `s1(`W_at(i[5:0]-2)) +
-                            `W_at(i[5:0]-7) +
-                            `s0(`W_at(i[5:0]-15)) +
-                            `W_at(i[5:0]-16);
+                        i <= 0;
+                        state <= S_INIT;
                     end
-                    i <= i + 1;
-                end else if(i[7:6] == 1) begin
+                end else if(state == S_INIT) begin
                     a <= H0;
                     b <= H1;
                     c <= H2;
@@ -125,8 +153,7 @@ module sha256 (
                     f <= H5;
                     g <= H6;
                     h <= H7;
-                    i <= 8'h80;
-                end else if(i[7:6] == 2) begin
+                end else if(state == S_COMPUTE) begin
                     h <= g;
                     g <= f;
                     f <= e;
@@ -135,8 +162,26 @@ module sha256 (
                     c <= b;
                     b <= a;
                     a <= t1 + t2;
-                    i <= i + 1;
-                end else if(i == 8'b11000000) begin
+
+                    W[0] <= W[1];
+                    W[1] <= W[2];
+                    W[2] <= W[3];
+                    W[3] <= W[4];
+                    W[4] <= W[5];
+                    W[5] <= W[6];
+                    W[6] <= W[7];
+                    W[7] <= W[8];
+                    W[8] <= W[9];
+                    W[9] <= W[10];
+                    W[10] <= W[11];
+                    W[11] <= W[12];
+                    W[12] <= W[13];
+                    W[13] <= W[14];
+                    W[14] <= W[15];
+                    W[15] <= Wt;
+                    if(i == 63) state <= S_OUT;
+                    else i <= i + 1;
+                end else if(state == S_OUT) begin
                     H0 <= a + H0;
                     H1 <= b + H1;
                     H2 <= c + H2;
@@ -145,14 +190,14 @@ module sha256 (
                     H5 <= f + H5;
                     H6 <= g + H6;
                     H7 <= h + H7;
-                    i <= i + 1;
-                end else begin
-                    if(j == 0) begin // Finished first block
-                        j <= j + 1;
-                        i <= 8'b0;
-                    end else if(j == 1) begin // Finished second block
+                    state <= S_NEXT;
+                end else if(state == S_NEXT) begin
+                    if(iteration == I_BLOCK1) begin // Finished first block
+                        i <= 0;
+                        iteration <= I_BLOCK2;
+                        state <= S_SCHEDULE;
+                    end else if(iteration == I_BLOCK2) begin // Finished second block
                         int_hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
-                        j <= j + 1;
                         // Reset SHA256 state and start new hash
                         H0 <= 32'h6a09e667;
                         H1 <= 32'hbb67ae85;
@@ -165,10 +210,12 @@ module sha256 (
                         a <= 0; b <= 0; c <= 0; d <= 0;
                         e <= 0; f <= 0; g <= 0; h <= 0;
                         i <= 0;
-                    end else if(j == 2) begin
+                        state <= S_SCHEDULE;
+                        iteration <= I_DOUBLE;
+                    end else if(iteration == I_DOUBLE) begin
                         hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
                         done <= 1;
-                        j <= j + 1;
+                        iteration <= I_DONE;
                     end
                 end
             end
