@@ -44,50 +44,9 @@ module tb;
     localparam [255:0] GOLDEN_HASH =
         256'h6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000;
 
-    // --------------------------
-    // Helper task to convert a string to SHA-256 padded 512-bit block
-    // --------------------------
-    task string_to_block(input string msg, output reg [511:0] block);
-        integer i;
-        integer msg_len;
-        reg [63:0] bit_len;
-        begin
-            block = 512'b0;
-            msg_len = msg.len();          // number of bytes
-            bit_len = msg_len * 8;       // message length in bits
-
-            // Copy message bytes into the MSBs of the block
-            for (i = 0; i < msg_len; i = i + 1) begin
-                block[511 - i*8 -: 8] = msg[i];
-            end
-
-            // Add the 0x80 bit right after the message
-            block[511 - msg_len*8 -: 8] = {1'b1, 7'b0};
-
-            // Append message length in bits at the last 64 bits
-            block[63:0] = bit_len;
-        end
-    endtask
-
     initial begin
         $dumpfile("tb.vcd");
         $dumpvars(0, tb);
-        /*$dumpvars(0, tb.dut.W[0]);
-        $dumpvars(0, tb.dut.W[1]);
-        $dumpvars(0, tb.dut.W[2]);
-        $dumpvars(0, tb.dut.W[3]);
-        $dumpvars(0, tb.dut.W[4]);
-        $dumpvars(0, tb.dut.W[5]);
-        $dumpvars(0, tb.dut.W[6]);
-        $dumpvars(0, tb.dut.W[7]);
-        $dumpvars(0, tb.dut.W[8]);
-        $dumpvars(0, tb.dut.W[9]);
-        $dumpvars(0, tb.dut.W[10]);
-        $dumpvars(0, tb.dut.W[11]);
-        $dumpvars(0, tb.dut.W[12]);
-        $dumpvars(0, tb.dut.W[13]);
-        $dumpvars(0, tb.dut.W[14]);
-        $dumpvars(0, tb.dut.W[15]);*/
         clk = 0;
         rst_n = 0;
         start = 0;
