@@ -31,10 +31,11 @@ module sha256 (
             run <= 1'b0;
         end else begin
             if(start) run <= 1'b1;
+            else if(done) run <= 1'b0;
         end
     end
 
-    reg [31:0] K [0:64];
+    reg [31:0] K [0:63];
 
     localparam [2047:0] INIT_K = {
         32'h428a2f98, 32'h71374491, 32'hb5c0fbcf, 32'he9b5dba5, 32'h3956c25b, 32'h59f111f1, 32'h923f82a4, 32'hab1c5ed5,
@@ -47,9 +48,10 @@ module sha256 (
         32'h748f82ee, 32'h78a5636f, 32'h84c87814, 32'h8cc70208, 32'h90befffa, 32'ha4506ceb, 32'hbef9a3f7, 32'hc67178f2
     };
 
+    integer k;
     initial begin
-        for (i = 0; i < 64; i = i + 1)
-            K[i] = INIT_K[(63 - i) * 32 +: 32];
+        for (k = 0; k < 64; k = k + 1)
+            K[k] = INIT_K[(63 - k) * 32 +: 32];
     end
 
     `define rotr(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
@@ -101,6 +103,14 @@ module sha256 (
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
+            // State variables
+            state <= S_SCHEDULE;
+            iteration <= I_BLOCK1;
+            i <= 6'b0;
+            int_hash <= 256'b0;
+            done <= 0;
+
+            // Working variables
             H0 <= 32'h6a09e667;
             H1 <= 32'hbb67ae85;
             H2 <= 32'h3c6ef372;
@@ -111,7 +121,6 @@ module sha256 (
             H7 <= 32'h5be0cd19;
             a <= 0; b <= 0; c <= 0; d <= 0;
             e <= 0; f <= 0; g <= 0; h <= 0;
-            i <= 5'b0;
             W[0] <= 32'b0;
             W[1] <= 32'b0;
             W[2] <= 32'b0;
@@ -128,16 +137,14 @@ module sha256 (
             W[13] <= 32'b0;
             W[14] <= 32'b0;
             W[15] <= 32'b0;
-            int_hash <= 256'b0;
-            done <= 0;
         end else begin
             if(run) begin
                 if(state == S_SCHEDULE) begin
                     if(i < 16) begin
                         if(iteration == I_DOUBLE) begin
-                            W[i[5:0]] <= int_data[(511 - i*32) -: 32];
+                            W[i] <= int_data[(511 - i*32) -: 32];
                         end else begin
-                            W[i[5:0]] <= data[(1023 - iteration*512 - i*32) -: 32];
+                            W[i] <= data[(1023 - iteration*512 - i*32) -: 32];
                         end
                         i <= i + 1;
                     end else begin
@@ -153,6 +160,7 @@ module sha256 (
                     f <= H5;
                     g <= H6;
                     h <= H7;
+                    state <= S_COMPUTE;
                 end else if(state == S_COMPUTE) begin
                     h <= g;
                     g <= f;
@@ -163,24 +171,28 @@ module sha256 (
                     b <= a;
                     a <= t1 + t2;
 
-                    W[0] <= W[1];
-                    W[1] <= W[2];
-                    W[2] <= W[3];
-                    W[3] <= W[4];
-                    W[4] <= W[5];
-                    W[5] <= W[6];
-                    W[6] <= W[7];
-                    W[7] <= W[8];
-                    W[8] <= W[9];
-                    W[9] <= W[10];
-                    W[10] <= W[11];
-                    W[11] <= W[12];
-                    W[12] <= W[13];
-                    W[13] <= W[14];
-                    W[14] <= W[15];
-                    W[15] <= Wt;
+                    if(i >= 16) begin
+                        W[0] <= W[1];
+                        W[1] <= W[2];
+                        W[2] <= W[3];
+                        W[3] <= W[4];
+                        W[4] <= W[5];
+                        W[5] <= W[6];
+                        W[6] <= W[7];
+                        W[7] <= W[8];
+                        W[8] <= W[9];
+                        W[9] <= W[10];
+                        W[10] <= W[11];
+                        W[11] <= W[12];
+                        W[12] <= W[13];
+                        W[13] <= W[14];
+                        W[14] <= W[15];
+                        W[15] <= Wt;
+                    end
+
                     if(i == 63) state <= S_OUT;
                     else i <= i + 1;
+                    
                 end else if(state == S_OUT) begin
                     H0 <= a + H0;
                     H1 <= b + H1;
