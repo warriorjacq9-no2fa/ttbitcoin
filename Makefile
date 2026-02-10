@@ -2,7 +2,8 @@
 
 SRCS = \
 test/tb_sha256.sv \
-src/sha256.v
+src/sha256.v \
+src/macros.v
 
 all: tb.vvp
 	vvp $<
