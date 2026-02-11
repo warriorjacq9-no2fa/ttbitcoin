@@ -43,17 +43,11 @@ module sha256 (
     wire [31:0] S1_e = {e[5:0],e[31:6]} ^ {e[10:0],e[31:11]} ^ {e[24:0],e[31:25]};
     `define s0(x) (`rotr((x), 7) ^ `rotr((x), 18) ^ ((x) >> 3))
     `define s1(x) (`rotr((x), 17) ^ `rotr((x), 19) ^ ((x) >> 10))
-    
-    /* ----- Size and Endianness Correction ----- */
-    wire [1023:0] data = {
-        block[639:0],
-        8'h80,
-        376'h0280
-    };
 
     /* ----- SHA256 Calculation ----- */
     reg [31:0] a, b, c, d, e, f, g, h;
     reg [31:0] H0, H1, H2, H3, H4, H5, H6, H7;
+    /* Combinational calculations */
     wire [31:0] t1 = h + S1_e + ch_e + 
                         K(i) + Wt;
     wire [31:0] t2 = S0_a + maj_a;
@@ -65,12 +59,32 @@ module sha256 (
         `s0(W[1]) +
         W[0]
     );
+    reg [31:0] Wnext;
+    always @(*) begin
+        if(iteration == I_DOUBLE) begin
+            if (i < 8)
+                Wnext = int_hash[(255 - i*32) -: 32];
+            else if (i == 8)
+                Wnext = 32'h80000000;
+            else if (i == 15)
+                Wnext = 32'h00000100;
+            else
+                Wnext = 32'h00000000;
+        end else if(iteration == I_BLOCK1) begin
+                Wnext = block[(639 - i*32) -: 32];
+        end else if(iteration == I_BLOCK2) begin
+            if (i < 4)
+                Wnext = block[(127 - i*32) -: 32];
+            else if (i == 4)
+                Wnext = 32'h80000000;
+            else if (i == 15)
+                Wnext = 32'h00000280;
+            else
+                Wnext = 32'h00000000;
+        end else
+            Wnext = 32'h00000000;
+    end
     reg [255:0] int_hash;
-    wire [511:0] int_data = {
-        int_hash,
-        8'h80,
-        248'h0100
-    };
     // State machine
     localparam S_SCHEDULE=0, S_INIT=1, S_COMPUTE=2;
     localparam S_OUT=3, S_NEXT=4, S_DONE=5;
@@ -104,11 +118,7 @@ module sha256 (
             if(run) begin
                 if(state == S_SCHEDULE) begin
                     if(i < 16) begin
-                        if(iteration == I_DOUBLE) begin
-                            W[i[3:0]] <= int_data[(511 - i*32) -: 32];
-                        end else begin
-                            W[i[3:0]] <= data[(1023 - iteration*512 - i*32) -: 32];
-                        end
+                        W[i[3:0]] <= Wnext;
                         i <= i + 1;
                     end else begin
                         i <= 0;
