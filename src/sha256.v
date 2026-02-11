@@ -21,9 +21,10 @@ module sha256 (
     input wire clk, rst_n,
     input wire start,
     input wire [639:0] block,
-    output reg [255:0] hash,
-    output reg done
+    output wire [255:0] hash,
+    output wire done
 );
+
     `define rotr(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
     wire [31:0] ch_e = (e & f) ^ (~e & g);
     wire [31:0] maj_a = (a & b) ^ (a & c) ^ (b & c);
@@ -76,11 +77,14 @@ module sha256 (
     reg [255:0] int_hash;
     // State machine
     localparam S_IDLE=0, S_INIT=1, S_COMPUTE=2;
-    localparam S_OUT=3, S_NEXT=4, S_DONE=5;
+    localparam S_OUT=3, S_NEXT=4;
     reg [4:0] state;
     // To track iteration for 640-bit double-SHA
-    localparam I_BLOCK1=0, I_BLOCK2=1, I_DOUBLE=2, I_DONE=3;
+    localparam I_BLOCK1=0, I_BLOCK2=1, I_DOUBLE=2;
     reg [1:0] iteration;
+
+    assign done = (state == S_IDLE && iteration == I_DOUBLE);
+    assign hash = {H0, H1, H2, H3, H4, H5, H6, H7};
 
     // Round counter
     reg [5:0] i;
@@ -94,7 +98,6 @@ module sha256 (
                 iteration <= I_BLOCK1;
                 i <= 6'b0;
                 int_hash <= 256'b0;
-                done <= 0;
 
                 // Working variables
                 H0 <= CH0;
@@ -186,9 +189,6 @@ module sha256 (
                     state <= S_INIT;
                     iteration <= I_DOUBLE;
                 end else if(iteration == I_DOUBLE) begin
-                    hash <= {H0, H1, H2, H3, H4, H5, H6, H7};
-                    done <= 1;
-                    iteration <= I_BLOCK1;
                     state <= S_IDLE;
                 end
             end
