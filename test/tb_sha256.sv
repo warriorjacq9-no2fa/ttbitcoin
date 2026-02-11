@@ -43,6 +43,8 @@ module tb;
     // Golden hash for Bitcoin genesis block
     localparam [255:0] GOLDEN_HASH =
         256'h6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000;
+    localparam [255:0] GOLDEN_HASH2 =
+        256'h4860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000;
 
     initial begin
         $dumpfile("tb.vcd");
@@ -79,13 +81,27 @@ module tb;
 
         // Wait for completion
         wait(done);
-
-        // Small delay to let hash settle
         #10;
 
-        // Check result
-        $display("Expected: %h", GOLDEN_HASH);
-        $display("Got     : %h", hash);
+        $display("Iteration 1:");
+        $display("\tExpected: %h", GOLDEN_HASH);
+        $display("\tGot     : %h", hash);
+
+        data = 640'h010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299;
+        
+        // Do it again, but with different data
+        #20;
+        start = 1;
+        #20;
+        start = 0;
+
+        wait(done);
+        #10;
+        
+        $display("Iteration 2:");
+        $display("\tExpected: %h", GOLDEN_HASH2);
+        $display("\tGot     : %h", hash);
+
 
         $finish;
     end

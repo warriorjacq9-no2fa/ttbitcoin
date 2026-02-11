@@ -87,24 +87,24 @@ module sha256 (
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-            // State variables
+            // State machine
             state <= S_IDLE;
-            iteration <= I_BLOCK1;
-            i <= 6'b0;
-            int_hash <= 256'b0;
-            done <= 0;
-
-            // Working variables
-            H0 <= CH0;
-            H1 <= CH1;
-            H2 <= CH2;
-            H3 <= CH3;
-            H4 <= CH4;
-            H5 <= CH5;
-            H6 <= CH6;
-            H7 <= CH7;
         end else begin
             if(state == S_IDLE) begin
+                iteration <= I_BLOCK1;
+                i <= 6'b0;
+                int_hash <= 256'b0;
+                done <= 0;
+
+                // Working variables
+                H0 <= CH0;
+                H1 <= CH1;
+                H2 <= CH2;
+                H3 <= CH3;
+                H4 <= CH4;
+                H5 <= CH5;
+                H6 <= CH6;
+                H7 <= CH7;
                 if(start) state <= S_INIT;
             end else if(state == S_INIT) begin
                 if(i == 0) begin
