@@ -145,8 +145,8 @@ module tb;
 
         $display("Hash output       %h\n", out);
 
-        $display("Took      %d cycles (%sH/s at 200MHz)",
-            cycles, human_readable(200000000.0/cycles));
+        $display("Took      %d cycles (%sH/s at 100MHz)",
+            cycles, human_readable(100000000.0/cycles));
 
         #50;
         $finish;

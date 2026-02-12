@@ -78,7 +78,7 @@ module sha256 (
     // State machine
     localparam S_IDLE=0, S_INIT=1, S_COMPUTE=2;
     localparam S_OUT=3, S_NEXT=4;
-    reg [4:0] state;
+    reg [2:0] state;
     // To track iteration for 640-bit double-SHA
     localparam I_BLOCK1=0, I_BLOCK2=1, I_DOUBLE=2;
     reg [1:0] iteration;

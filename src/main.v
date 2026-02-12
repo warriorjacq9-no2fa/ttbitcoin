@@ -67,7 +67,6 @@ module tt_um_bitcoin (
             data_out <= 8'b0;
             done <= 1'b0;
             rq <= 1'b0;
-            block <= 640'b0;
             state <= S_READ;
             start <= 1'b0;
             uio_oe <= 8'b0;
