@@ -28,100 +28,77 @@ module tt_um_bitcoin (
 );
 
     /* External interface */
-    reg [5:0] addr;
+    wire [5:0] addr;
+    reg [5:0] w_addr;
     reg [7:0] data_out;
     wire [15:0] data_in;
-    reg done, rq;
+    reg done;
+    wire rq;
     
     assign uo_out[7:0] = {rq, done, addr[5:0]};
     assign uio_out[7:0] = data_out[7:0];
     assign data_in[15:0] = {ui_in[7:0], uio_in[7:0]};
 
     /* Internal variables */
-    reg [639:0] block;
+    reg [31:0] data;
+    wire [4:0] s_addr;
+    reg s_rdy;
     wire [255:0] s_hash;
-    reg [255:0] hash;
     wire s_done;
     reg start;
-    reg [1:0] state;
-    localparam S_READ=2'h0, S_COMPUTE=2'h1, S_WRITE=2'h2, S_IDLE=2'h3;
-    wire ack = ui_in[7];
+    reg state;
+    localparam S_HASH=1'h0, S_WRITE=1'h1;
 
-    /* Cores (1 for now) */
-    sha256 s1 (
+    /* SHA256 core */
+    sha256d_wrapper s1 (
         .clk(clk),
         .rst_n(rst_n),
         .start(start),
-        .block(block),
+        .data(data),
+        .addr(s_addr),
+        .rdy(s_rdy),
+        .rq(rq),
         .hash(s_hash),
         .done(s_done)
     );
 
-    // Edge detection
-    reg d_ack;
+    reg i;
+    assign addr = (state == S_HASH ? {s_addr, i} : {w_addr});
 
     /* Mainloop */
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-            addr <= 6'b0;
+            w_addr <= 6'b0;
             data_out <= 8'b0;
             done <= 1'b0;
-            rq <= 1'b0;
-            state <= S_READ;
+            state <= S_HASH;
             start <= 1'b0;
             uio_oe <= 8'b0;
-
-            d_ack <= 1'b0;
+            i <= 0;
+            s_rdy <= 0;
         end else begin
-            d_ack <= ack;
-            case (state)
-                S_READ: begin
-                    uio_oe <= 8'h00;
-                    if(addr < 6'd40) begin
-                        if(rq) begin
-                            block[(639 - addr*16) -: 16] <= data_in[15:0];
-                            rq <= 1'b0;
-                            addr <= addr + 1;
-                        end else begin
-                            rq <= 1'b1;
-                        end
-                    end else begin
-                        addr <= 6'b0;
-                        state <= S_COMPUTE;
-                    end
+            if(state == S_HASH) begin
+                if(rq) begin
+                    data[i*16 +: 16] <= data_in;
+                    if(i == 1) s_rdy <= 1;
+                    else s_rdy <= 0;
+                    i++;
                 end
-                
-                S_COMPUTE: begin
-                    start <= 1'b1;
-                    if(s_done) begin
-                        hash <= s_hash;
-                        done <= 1'b1;
-                        state <= S_WRITE;
-                    end
+                if(s_done) begin
+                    state <= S_WRITE;
+                    done <= 1;
                 end
-                
-                S_WRITE: begin
-                    done <= 1'b0;
-                    uio_oe <= 8'hFF;
-                    if(addr < 32) begin
-                        rq <= 1'b1;
-                        data_out[7:0] <= hash[(255 - addr*8) -: 8];
-                        if(ack && !d_ack) begin
-                            addr <= addr + 1;
-                            rq <= 1'b0;
-                        end
-                    end else begin
-                        state <= S_IDLE;
-                    end
+            end else if(state == S_WRITE) begin
+                data_out <= s_hash[(255 - addr*8) -: 8];
+                if(addr == 6'd31) done <= 1;
+                else begin
+                    done <= 0;
+                    w_addr <= w_addr + 1;
                 end
-
-                S_IDLE: begin
-                    done <= 1'b1;
-                end
-            endcase
+            end
         end
     end
 
-    wire _unused = &{ena};
+    wire _unused = ena;
     
 endmodule

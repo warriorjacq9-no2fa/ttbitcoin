@@ -17,8 +17,7 @@ To use this project, you need a program which can provide block templates, usual
 | Pin | Description |
 | --- | ----------- |
 | DI/O0..7 | Bidirectional data bus |
-| DI8..14 | High byte of data input bus |
-| DI15/ACK | Functions as an acknowledge when reading bytes from the device |
+| DI8..15 | High byte of data input bus |
 | A0..5 | address output bus |
 | DONE | Signals block completion, active high |
 | RQ | Signals data request, active high |

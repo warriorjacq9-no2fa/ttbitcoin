@@ -1,7 +1,8 @@
 .PHONY: all clean
 
 SRCS = \
-test/tb_unit.sv \
+test/tb.sv \
+src/main.v \
 src/sha256_stream.v \
 src/sha256d_wrapper.v \
 src/macros.v

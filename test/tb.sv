@@ -140,13 +140,10 @@ module tb;
         end
         running = 0;
 
-        $display("Device recieved   %h\n", dut.block);
-        $display("Expected          %h", block);
-
         $display("Hash output       %h\n", out);
 
-        $display("Took      %d cycles (%sH/s at 100MHz)",
-            cycles, human_readable(100000000.0/cycles));
+        $display("Took              %0d cycles (%sH/s at 80MHz)",
+            cycles, human_readable(80000000.0/cycles));
 
         #50;
         $finish;
