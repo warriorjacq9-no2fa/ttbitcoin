@@ -23,7 +23,7 @@ module tb;
     reg clk, rst_n;
     reg start;
     wire rq;
-    reg rdy;
+    reg rdy = 0;
     wire done;
     reg [255:0] hash;
 
@@ -43,11 +43,11 @@ module tb;
     );
 
     // Data feeding
-    reg [511:0] message = 
+    reg [640:0] block = 
     640'h0100000000000000000000000000000000000000000000000000000000000000000000003BA3EDFD7A7B12B27AC72C3E67768F617FC81BC3888A51323A9FB8AA4B1E5E4A29AB5F49FFFF001D1DAC2B7C;
  
     always @(posedge rq) begin
-        data <= message[(511 - addr*32) -: 32];
+        data <= block[(639 - addr*32) -: 32];
         rdy <= 1;
         #10;
         rdy <= 0;
@@ -86,7 +86,7 @@ module tb;
         #10;
 
         $display("\tGot     : %h", hash);
-        $display("\tIn%d cycles (%f ns at 80MHz)", counter, counter/80.0);
+        $display("\tIn      %0d cycles (%f ns at 80MHz, or %0d KH/s)", counter, counter / 0.080, 80000 / counter);
 
         $finish;
     end

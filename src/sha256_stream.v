@@ -65,14 +65,18 @@ module sha256_stream (
 
     assign addr = (i < 16 ? i[3:0] : 0);
 
+    reg d_rdy;
+
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-            done <= 0;
             rq <= 0;
+            done <= 0;
             // State machine
             state <= S_IDLE;
         end else begin
+            d_rdy <= rdy;
             if(state == S_IDLE) begin
+                done <= 0;
                 i <= 6'b0;
                 if(start) begin
                     state <= S_INIT;
@@ -91,7 +95,7 @@ module sha256_stream (
                 end
                 if(i < 16) begin
                     rq <= 1;
-                    if(rdy) begin
+                    if(rdy && !d_rdy) begin
                         W[i[3:0]] <= data;
                         rq <= 0;
                         i <= i + 1;

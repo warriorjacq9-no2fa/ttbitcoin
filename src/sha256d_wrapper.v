@@ -28,7 +28,7 @@ module sha256d_wrapper (
     // Bus interface
     input wire rdy,
     input wire [31:0] data,
-    output reg [4:0] addr,
+    output wire [4:0] addr,
     output reg rq,
 
     // SHA-256 specific
@@ -38,20 +38,25 @@ module sha256d_wrapper (
     reg s_rdy, s_start;
     wire s_rq, s_done;
     reg [31:0] s_data;
+    wire [3:0] s_addr;
     wire [255:0] s_out;
     reg [255:0] s_in;
+
+    reg addr_high;
     reg [255:0] int_hash;
+
+    assign addr = {addr_high, s_addr};
 
     localparam S_IDLE=0, S_BLOCK1=1, S_BLOCK2=2, S_DOUBLE=3;
     reg [1:0] state;
 
-    sha256_stream sha256 (
+    sha256_stream s (
         .clk(clk),
         .rst_n(rst_n),
         .start(s_start),
         .rdy(s_rdy),
         .data(s_data),
-        .addr(addr[3:0]),
+        .addr(s_addr),
         .rq(s_rq),
         .state_in(s_in),
         .state_out(s_out),
@@ -62,10 +67,12 @@ module sha256d_wrapper (
         if(!rst_n) begin
             s_rdy <= 0;
             s_start <= 0;
+            addr_high <= 0;
             state <= S_IDLE;
+            done <= 0;
         end else begin
             if(s_rq) begin
-                if(state == S_BLOCK2 && addr[3:0] > 4) begin
+                if(state == S_BLOCK2 && addr[3:0] > 3) begin
                     case (addr[3:0])
                         4:          s_data <= 32'h80000000;
                         15:         s_data <= 32'h00000280;
@@ -86,19 +93,23 @@ module sha256d_wrapper (
                 end else begin
                     s_data <= data;
                     s_rdy <= rdy;
-                    rq <= s_rq;
+                    rq <= 1;
                 end
-            end else if(s_done) begin
+            end else begin
+                s_rdy <= 0;
+                rq <= 0;
+            end
+            if(s_done) begin
                 if(state == S_BLOCK1) begin
                     // Switch to high 512 bits
-                    addr[4] <= 1;
+                    addr_high <= 1;
                     
                     s_in <= s_out;
                     s_start <= 1;
                     state <= S_BLOCK2;
                 end else if(state == S_BLOCK2) begin
                     int_hash <= s_out;
-                    addr[4] <= 0;
+                    addr_high <= 0;
 
                     s_in <= {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7};
                     s_start <= 1;
