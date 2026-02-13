@@ -1,0 +1,66 @@
+name: push
+
+on: [push, workflow_dispatch]
+
+jobs:
+  docs:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build docs
+        uses: TinyTapeout/tt-gds-action/docs@ttsky25b
+  gds:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build GDS
+        uses: TinyTapeout/tt-gds-action@ttsky25b
+        with:
+          pdk: sky130A
+
+  precheck:
+    needs: gds
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Run Tiny Tapeout Precheck
+        uses: TinyTapeout/tt-gds-action/precheck@ttsky25b
+
+  viewer:
+    needs: gds
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    steps:
+      - uses: TinyTapeout/tt-gds-action/viewer@ttsky25b
+  
+  release:
+    needs: [precheck, viewer]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Get artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tt_submission
+      
+      - name: Prep release
+        run: |
+          zip -r release.zip tt_submission
+          echo "RELEASE_DATE=$(date +'%Y.%m.%d.%H%M%S')" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ env.RELEASE_DATE }}
+          name: Release ${{ env.RELEASE_DATE }}
+          artifact: release.zip

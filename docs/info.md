@@ -14,28 +14,21 @@ This project uses a SHA256 engine I wrote to mine Bitcoin blocks provided by an 
 ## How to test
 
 To use this project, you need a program which can provide block templates, usually Bitcoin Core, and you need to find a way to pipe those block templates into the design. The design will input a block template, compute the nonce, and output the nonce.
-| Pin | Description |
-| --- | ----------- |
-| DI/O0..7 | Bidirectional data bus |
-| DI8..15 | High byte of data input bus |
-| A0..5 | address output bus |
-| DONE | Signals block completion, active high |
-| RQ | Signals data request, active high |
 
-All addresses are for 16-bit words
+All addresses are for 8-bit words
 
-To input a block template to the design listen on RQ for a request and A0..5 for the address. Respond on DI/O0..7 and DI8..15 while RQ is high (you have to present valid data before the next clock rising edge). Send bytes according to this memory map:
+To input a block template to the design listen on RQ for a request and A/DO0..7 for the address. Respond on DI0..7 and pull RDY high. Send bytes according to this memory map:
 
 | Address range | Data |
 | ------- | ---- |
-| 0x00-0x01 | Version |
-| 0x02-0x12 | Prev. block |
-| 0x12-0x22 | Merkle root |
-| 0x22-0x23 | Timestamp |
-| 0x24-0x25 | nBits |
-| 0x26-0x27 | Zero or starting nonce |
+| 0x00-0x03 | Version |
+| 0x04-0x23 | Prev. block |
+| 0x24-0x43 | Merkle root |
+| 0x44-0x47 | Timestamp |
+| 0x48-0x4B | nBits |
+| 0x4C-0x4F | Zero or starting nonce |
 
-When DONE goes high, the nonce will be outputted on DI/O0..7 according to this memory map:
+When DONE goes high, the nonce will be outputted on A/DO0..7 according to this memory map:
 
 | Address | Data |
 | ------- | ---- |
@@ -44,7 +37,7 @@ When DONE goes high, the nonce will be outputted on DI/O0..7 according to this m
 | 0x02 | Bits 15-23 |
 | 0x03 | Bits 24-31 |
 
-In this state, ACK is used as a data acknowledge input after each byte, and RQ is used as a data-ready signal. DONE will go high again when there is no data left.
+In this state, RDY is used as a data acknowledge input after each byte, and RQ is used as a data-ready signal. DONE will go low when there is no data left.
 
 ## External hardware
 
