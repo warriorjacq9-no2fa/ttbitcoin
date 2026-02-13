@@ -28,77 +28,102 @@ module tt_um_bitcoin (
 );
 
     /* External interface */
-    wire [5:0] addr;
-    reg [5:0] w_addr;
-    reg [7:0] data_out;
-    wire [15:0] data_in;
-    reg done;
-    wire rq;
-    
-    assign uo_out[7:0] = {rq, done, addr[5:0]};
-    assign uio_out[7:0] = data_out[7:0];
-    assign data_in[15:0] = {ui_in[7:0], uio_in[7:0]};
+    assign uio_oe = 8'b00001100;
+    wire start = uio_in[0];
+    reg rq, done;
+    assign uio_out[2] = rq;
+    assign uio_out[3] = done;
+    wire rdy = uio_in[1];
+    reg d_rdy;
+    reg [7:0] w_data;
 
-    /* Internal variables */
-    reg [31:0] data;
+    assign uo_out = (state == S_WRITE ? w_data : {s_addr, i[1:0]});
+    wire [7:0] data = ui_in;
+
+    /* SHA256 interface */
+    reg [31:0] s_data;
     wire [4:0] s_addr;
-    reg s_rdy;
+    wire s_rq, s_done;
+    reg d_srq;
+    reg s_start, s_rdy;
     wire [255:0] s_hash;
-    wire s_done;
-    reg start;
-    reg state;
-    localparam S_HASH=1'h0, S_WRITE=1'h1;
-
-    /* SHA256 core */
     sha256d_wrapper s1 (
         .clk(clk),
         .rst_n(rst_n),
-        .start(start),
-        .data(data),
-        .addr(s_addr),
+        .start(s_start),
         .rdy(s_rdy),
-        .rq(rq),
+        .data(s_data),
+        .addr(s_addr),
+        .rq(s_rq),
         .hash(s_hash),
         .done(s_done)
     );
 
-    reg i;
-    assign addr = (state == S_HASH ? {s_addr, i} : {w_addr});
+    localparam S_IDLE=2'd0, S_HASH=2'd1, S_WRITE=2'd2;
+    reg [1:0] state;
 
-    /* Mainloop */
+    reg [4:0] i;
+    reg read;
+    
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-            w_addr <= 6'b0;
-            data_out <= 8'b0;
+            state <= S_IDLE;
+            i <= 2'b0;
+            w_data <= 8'b0;
+            s_start <= 1'b0;
+            s_rdy <= 1'b0;
+            d_srq <= 1'b0;
+            d_rdy <= 1'b0;
+            rq <= 1'b0;
             done <= 1'b0;
-            state <= S_HASH;
-            start <= 1'b0;
-            uio_oe <= 8'b0;
-            i <= 0;
-            s_rdy <= 0;
         end else begin
-            if(state == S_HASH) begin
-                if(rq) begin
-                    data[i*16 +: 16] <= data_in;
-                    if(i == 1) s_rdy <= 1;
-                    else s_rdy <= 0;
-                    i++;
+            d_rdy <= rdy;
+            d_srq <= s_rq;
+            case(state)
+                S_IDLE: begin
+                    if(start) begin
+                        s_start <= 1'b1;
+                        state <= S_HASH;
+                    end
                 end
-                if(s_done) begin
-                    state <= S_WRITE;
-                    done <= 1;
+                S_HASH: begin
+                    s_start <= 1'b0;
+                    // Handle data requests
+                    s_rdy <= 1'b0;
+                    if(s_rq && !d_srq) read <= 1'b1;
+                    if(read) begin
+                        rq <= 1'b1;
+                        if(rdy && !d_rdy) begin
+                            rq <= 1'b0;
+                            s_data[31 - i*8 -: 8] <= data;
+                            if(i == 3) begin
+                                s_rdy <= 1'b1;
+                                read = 1'b0;
+                                i <= 5'b0;
+                            end else
+                                i <= i + 1;
+                        end
+                    end
+                    // Handle done
+                    if(s_done) begin
+                        done <= 1'b1;
+                        state <= S_WRITE;
+                    end
                 end
-            end else if(state == S_WRITE) begin
-                data_out <= s_hash[(255 - addr*8) -: 8];
-                if(addr == 6'd31) done <= 1;
-                else begin
-                    done <= 0;
-                    w_addr <= w_addr + 1;
+                S_WRITE: begin
+                    rq <= 1'b1;
+                    w_data <= s_hash[255 - i*8 -: 8];
+                    if(rdy && !d_rdy) begin
+                        rq <= 1'b0;
+                        if(i == 31) begin
+                            done <= 1'b0;
+                            state <= S_IDLE;
+                        end
+                        i <= i + 1;
+                    end
                 end
-            end
+            endcase
         end
     end
 
-    wire _unused = ena;
-    
 endmodule

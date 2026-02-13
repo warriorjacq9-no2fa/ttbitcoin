@@ -16,136 +16,86 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-`timescale 1ns/1ps
+`timescale 1ns / 1ps
 
 module tb;
 
-    reg  clk;
-    reg  rst_n;
+    reg clk, rst_n;
+    reg start;
+    wire rq;
+    reg rdy = 0;
+    wire done;
+    reg [255:0] hash;
 
-    reg  [7:0] ui_in;
-    reg  [7:0] uio_in;
-    wire [7:0] uo_out;
-    wire [7:0] uio_out;
-    wire [7:0] uio_oe;
+    reg [7:0] data;
+    wire [7:0] addr;
+    wire [5:0] pad;
 
     tt_um_bitcoin dut (
-        .ui_in(ui_in),
-        .uo_out(uo_out),
-        .uio_in(uio_in),
-        .uio_out(uio_out),
-        .uio_oe(uio_oe),
-        .ena(1'b1),
         .clk(clk),
-        .rst_n(rst_n)
+        .rst_n(rst_n),
+        .ui_in(data),
+        .uo_out(addr),
+        .uio_in({6'b0, rdy, start}),
+        .uio_out({pad[5:2], done, rq, pad[1:0]})
     );
 
-    // Clock
-    always #5 clk = ~clk;
-
-    // Decode outputs
-    wire [5:0] addr = uo_out[5:0];
-    wire done = uo_out[6];
-    wire rq   = uo_out[7];
-
-    reg [639:0] block = 
+    // Data feeding
+    reg [640:0] block = 
     640'h0100000000000000000000000000000000000000000000000000000000000000000000003BA3EDFD7A7B12B27AC72C3E67768F617FC81BC3888A51323A9FB8AA4B1E5E4A29AB5F49FFFF001D1DAC2B7C;
-
-    reg [255:0] out;
-
-    reg running;
-    integer cycles = 0;
-
-    always @(posedge clk) begin
-        if(running) begin
-            cycles++;
+ 
+    reg [4:0] i = 0;
+    always @(posedge rq) begin
+        if(done) begin
+            rdy <= 1;
+            #10;
+            rdy <= 0;
+            hash[(255 - i*8) -: 8] <= addr;
+            i <= i + 1;
+        end else begin
+            data <= block[(639 - addr*8) -: 8];
+            rdy <= 1;
+            #10;
+            rdy <= 0;
         end
     end
 
-    function string human_readable(longint unsigned value);
-        string suffix;
-        real scaled;
+    // Benchmarking
+    integer counter = 0;
+    logic count = 0;
 
-        if (value >= 1_000_000_000) begin
-            scaled = value / 1_000_000_000.0;
-            suffix = "G";
-        end
-        else if (value >= 1_000_000) begin
-            scaled = value / 1_000_000.0;
-            suffix = "M";
-        end
-        else if (value >= 1_000) begin
-            scaled = value / 1_000.0;
-            suffix = "K";
-        end
-        else begin
-            return $sformatf("%0d", value);
-        end
-
-        return $sformatf("%.1f%s", scaled, suffix);
-    endfunction
-
-    // Task: write one 16-bit word
-    task write_word(input [15:0] w);
-        begin
-            // Wait for request
-            wait (rq == 1'b1);
-
-            // Drive data
-            ui_in  <= w[15:8];   // DI8..15
-            uio_in <= w[7:0];    // DI/O0..7
-            wait (rq == 1'b0);
-        end
-    endtask
-
-    task read_word(output [255:0] s);
-        begin
-            // Wait for data-ready
-            wait (rq == 1'b1);
-
-            // Read data
-            s[(255 - addr*8) -: 8] <= uio_out[7:0];
-
-            // Acknowledge
-            ui_in[7] <= 1'b1;
-            wait (rq == 1'b0);
-            ui_in[7] <= 1'b0;
-        end
-    endtask
-
-    integer i;
+    // Clock generation: 100 MHz
+    always #5 begin
+        clk = ~clk;
+        if(count) counter++;
+    end
 
     initial begin
         $dumpfile("tb.vcd");
         $dumpvars(0, tb);
-        clk   = 0;
+        clk = 0;
         rst_n = 0;
-        ui_in = 8'h00;
-        uio_in = 8'h00;
-        out = 256'b0;
-
+        start = 0;
+        // Release reset
         #20;
         rst_n = 1;
-        running = 1;
 
-        // Send 40 words
-        for (i = 0; i < 40; i = i + 1) begin
-            write_word(block[(639 - i*16) -: 16]);
-        end
-        // Wait for DONE
-        wait (done == 1'b1);
+        // Start the engine
+        #20;
+        start = 1;
+        #20;
+        start = 0;
+        count = 1;
 
-        while (addr < 32) begin
-            read_word(out);
-        end
-        running = 0;
+        // Wait for completion
+        wait(done);
+        wait(!done);
+        count = 0;
+        #10;
 
-        $display("Hash output       %h\n", out);
+        $display("\tGot     : %h", hash);
+        $display("\tIn      %0d cycles (%f ns at 80MHz, or %0d KH/s)", counter, counter / 0.080, 80000 / counter);
 
-        $display("Took              %0d cycles (%sH/s at 80MHz)",
-            cycles, human_readable(80000000.0/cycles));
-
-        #50;
         $finish;
     end
 
