@@ -40,7 +40,8 @@ module sha256d_wrapper (
     reg [31:0] s_data;
     wire [3:0] s_addr;
     wire [255:0] s_out;
-    reg [255:0] s_in;
+    reg s_switch;
+    wire [255:0] s_in = (s_switch == 0 ? {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7} : s_out);
 
     reg addr_high;
     reg [255:0] int_hash;
@@ -63,10 +64,15 @@ module sha256d_wrapper (
         .done(s_done)
     );
 
+    // Delay register (for double-block timing)
+    reg d;
+
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             s_rdy <= 0;
             s_start <= 0;
+            s_switch <= 0;
+            d <= 0;
             addr_high <= 0;
             state <= S_IDLE;
             done <= 0;
@@ -104,14 +110,14 @@ module sha256d_wrapper (
                     // Switch to high 512 bits
                     addr_high <= 1;
                     
-                    s_in <= s_out;
-                    s_start <= 1;
+                    s_switch <= 1;
                     state <= S_BLOCK2;
+                    s_start <= 1;
                 end else if(state == S_BLOCK2) begin
                     int_hash <= s_out;
                     addr_high <= 0;
 
-                    s_in <= {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7};
+                    s_switch <= 0;
                     s_start <= 1;
                     state <= S_DOUBLE;
                 end else if(state == S_DOUBLE) begin
@@ -122,7 +128,7 @@ module sha256d_wrapper (
             end else begin
                 if(state == S_IDLE) begin
                     if(start) begin
-                        s_in <= {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7};
+                        s_switch <= 0;
                         s_start <= 1;
                         state <= S_BLOCK1;
                     end

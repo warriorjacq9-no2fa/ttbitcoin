@@ -33,10 +33,9 @@ module tt_um_bitcoin (
     reg rq, done;
     assign uio_out = {4'b0, done, rq, 2'b0};
     wire rdy = uio_in[1];
-    reg d_rdy;
     reg [7:0] w_data;
 
-    assign uo_out = (state == S_WRITE ? w_data : {1'b0, s_addr, i[1:0]});
+    assign uo_out = (done ? w_data : {1'b0, s_addr, i[1:0]});
     wire [7:0] data = ui_in;
 
     /* SHA256 interface */
@@ -61,23 +60,21 @@ module tt_um_bitcoin (
     localparam S_IDLE=2'd0, S_HASH=2'd1, S_WRITE=2'd2;
     reg [1:0] state;
 
-    reg [4:0] i;
+    reg [5:0] i;
     reg read;
     
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             state <= S_IDLE;
-            i <= 5'b0;
+            i <= 6'b0;
             w_data <= 8'b0;
             s_start <= 1'b0;
             s_rdy <= 1'b0;
             d_srq <= 1'b0;
-            d_rdy <= 1'b0;
             rq <= 1'b0;
             done <= 1'b0;
             read <= 1'b0;
         end else begin
-            d_rdy <= rdy;
             d_srq <= s_rq;
             case(state)
                 S_IDLE: begin
@@ -92,16 +89,16 @@ module tt_um_bitcoin (
                     s_rdy <= 1'b0;
                     if(s_rq && !d_srq) read <= 1'b1;
                     if(read) begin
-                        rq <= 1'b1;
-                        if(rdy && !d_rdy) begin
+                        if(i < 4 && !rq) begin
+                            rq <= 1'b1;
+                        end else if(rq && rdy) begin
                             rq <= 1'b0;
                             s_data[31 - i*8 -: 8] <= data;
-                            if(i == 3) begin
-                                s_rdy <= 1'b1;
-                                read <= 1'b0;
-                                i <= 5'b0;
-                            end else
-                                i <= i + 1;
+                            i <= i + 1;
+                        end else if(i == 4) begin
+                            s_rdy <= 1'b1;
+                            read <= 1'b0;
+                            i <= 6'b0;
                         end
                     end
                     // Handle done
@@ -111,15 +108,15 @@ module tt_um_bitcoin (
                     end
                 end
                 S_WRITE: begin
-                    rq <= 1'b1;
-                    w_data <= s_hash[255 - i*8 -: 8];
-                    if(rdy && !d_rdy) begin
+                    if(i < 32 && !rq) begin
+                        rq <= 1'b1;
+                        w_data <= s_hash[255 - i*8 -: 8];
+                    end else if(rq && rdy) begin
                         rq <= 1'b0;
-                        if(i == 31) begin
-                            done <= 1'b0;
-                            state <= S_IDLE;
-                        end
                         i <= i + 1;
+                    end else if(i == 32) begin
+                        done <= 1'b0;
+                        state <= S_IDLE;
                     end
                 end
                 default: state <= S_IDLE;

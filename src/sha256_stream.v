@@ -52,20 +52,19 @@ module sha256_stream (
                         K(i) + Wt;
     wire [31:0] t2 = S0_a + maj_a;
     reg [31:0] W [0:15];
-    wire [31:0] Wt = (i < 16 ?
+    reg [3:0] Wptr;
+    wire [31:0] Wt = (i < 16 ? 
         W[i[3:0]] :
-        `s1(W[14]) +
-        W[9] +
-        `s0(W[1]) +
-        W[0]
+        `s1(W[(Wptr + 14) & 4'hF]) +
+        W[(Wptr + 9) & 4'hF] +
+        `s0(W[(Wptr + 1) & 4'hF]) +
+        W[Wptr]
     );
 
     localparam S_IDLE=0, S_INIT=1, S_COMPUTE=2, S_OUT=3;
     reg [1:0] state;
 
     assign addr = (i < 16 ? i[3:0] : 0);
-
-    reg d_rdy;
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
@@ -74,33 +73,23 @@ module sha256_stream (
             // State machine
             state <= S_IDLE;
         end else begin
-            d_rdy <= rdy;
             if(state == S_IDLE) begin
                 done <= 0;
                 i <= 6'b0;
+                Wptr <= 4'b0;
                 if(start) begin
                     state <= S_INIT;
                     {H0, H1, H2, H3, H4, H5, H6, H7} <= state_in;
+                    {a, b, c, d, e, f, g, h} <= state_in;
                 end
             end else if(state == S_INIT) begin
-                if(i == 0) begin
-                    a <= H0;
-                    b <= H1;
-                    c <= H2;
-                    d <= H3;
-                    e <= H4;
-                    f <= H5;
-                    g <= H6;
-                    h <= H7;
-                end
-                if(i < 16) begin
+                if(i < 16 && !rq) begin
                     rq <= 1;
-                    if(rdy && !d_rdy) begin
-                        W[i[3:0]] <= data;
-                        rq <= 0;
-                        i <= i + 1;
-                    end
-                end else begin
+                end else if(rq && rdy) begin
+                    W[i[3:0]] <= data;
+                    rq <= 0;
+                    i <= i + 1;
+                end else if(i == 16) begin
                     i <= 0;
                     state <= S_COMPUTE;
                 end
@@ -115,22 +104,8 @@ module sha256_stream (
                 a <= t1 + t2;
 
                 if(i >= 16) begin
-                    W[0] <= W[1];
-                    W[1] <= W[2];
-                    W[2] <= W[3];
-                    W[3] <= W[4];
-                    W[4] <= W[5];
-                    W[5] <= W[6];
-                    W[6] <= W[7];
-                    W[7] <= W[8];
-                    W[8] <= W[9];
-                    W[9] <= W[10];
-                    W[10] <= W[11];
-                    W[11] <= W[12];
-                    W[12] <= W[13];
-                    W[13] <= W[14];
-                    W[14] <= W[15];
-                    W[15] <= Wt;
+                    W[Wptr] <= Wt;
+                    Wptr <= Wptr + 1;
                 end
 
                 if(i == 63) state <= S_OUT;
