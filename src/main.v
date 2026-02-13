@@ -31,13 +31,12 @@ module tt_um_bitcoin (
     assign uio_oe = 8'b00001100;
     wire start = uio_in[0];
     reg rq, done;
-    assign uio_out[2] = rq;
-    assign uio_out[3] = done;
+    assign uio_out = {4'b0, done, rq, 2'b0};
     wire rdy = uio_in[1];
     reg d_rdy;
     reg [7:0] w_data;
 
-    assign uo_out = (state == S_WRITE ? w_data : {s_addr, i[1:0]});
+    assign uo_out = (state == S_WRITE ? w_data : {1'b0, s_addr, i[1:0]});
     wire [7:0] data = ui_in;
 
     /* SHA256 interface */
@@ -68,7 +67,7 @@ module tt_um_bitcoin (
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             state <= S_IDLE;
-            i <= 2'b0;
+            i <= 5'b0;
             w_data <= 8'b0;
             s_start <= 1'b0;
             s_rdy <= 1'b0;
@@ -76,6 +75,7 @@ module tt_um_bitcoin (
             d_rdy <= 1'b0;
             rq <= 1'b0;
             done <= 1'b0;
+            read <= 1'b0;
         end else begin
             d_rdy <= rdy;
             d_srq <= s_rq;
@@ -98,7 +98,7 @@ module tt_um_bitcoin (
                             s_data[31 - i*8 -: 8] <= data;
                             if(i == 3) begin
                                 s_rdy <= 1'b1;
-                                read = 1'b0;
+                                read <= 1'b0;
                                 i <= 5'b0;
                             end else
                                 i <= i + 1;
@@ -122,8 +122,11 @@ module tt_um_bitcoin (
                         i <= i + 1;
                     end
                 end
+                default: state <= S_IDLE;
             endcase
         end
     end
+
+    wire _unused = &{uio_in[7:2], ena};
 
 endmodule

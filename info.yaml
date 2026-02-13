@@ -3,12 +3,12 @@ project:
   title:        "Bitcoin"      # Project title
   author:       "Jack Flusche"      # Your name
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
-  description:  "An educational multi-core Bitcoin miner"      # One line description of what your project does
+  description:  "An educational single-core Bitcoin miner"      # One line description of what your project does
   language:     "SystemVerilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
-  clock_hz:     200000000       # Clock frequency in Hz (or 0 if not applicable)
+  clock_hz:     80000000       # Clock frequency in Hz (or 0 if not applicable)
 
   # How many tiles your design occupies? A single tile is about 167x108 uM.
-  tiles: "1x1"          # Valid values: 1x1, 1x2, 2x2, 3x2, 4x2, 6x2 or 8x2
+  tiles: "8x2"          # Valid values: 1x1, 1x2, 2x2, 3x2, 4x2, 6x2 or 8x2
 
   # Your top module name must start with "tt_um_". Make it unique by including your github username:
   top_module:  "tt_um_bitcoin"
@@ -19,40 +19,41 @@ project:
   source_files:
     - "main.v"
     - "macros.v"
-    - "sha256.v"
+    - "sha256_stream.v"
+    - "sha256d_wrapper.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
 pinout:
   # Inputs
-  ui[0]: "DI8"
-  ui[1]: "DI9"
-  ui[2]: "DI10"
-  ui[3]: "DI11"
-  ui[4]: "DI12"
-  ui[5]: "DI13"
-  ui[6]: "DI14"
-  ui[7]: "DI15/ACK"
+  ui[0]: "DI0"
+  ui[1]: "DI1"
+  ui[2]: "DI2"
+  ui[3]: "DI3"
+  ui[4]: "DI4"
+  ui[5]: "DI5"
+  ui[6]: "DI6"
+  ui[7]: "DI7"
 
   # Outputs
-  uo[0]: "A0"
-  uo[1]: "A1"
-  uo[2]: "A2"
-  uo[3]: "A3"
-  uo[4]: "A4"
-  uo[5]: "A5"
-  uo[6]: "DONE"
-  uo[7]: "RQ"
+  uo[0]: "A/DO0"
+  uo[1]: "A/DO1"
+  uo[2]: "A/DO2"
+  uo[3]: "A/DO3"
+  uo[4]: "A/DO4"
+  uo[5]: "A/DO5"
+  uo[6]: "A/DO6"
+  uo[7]: "A/DO7"
 
   # Bidirectional pins
-  uio[0]: "DI/O0"
-  uio[1]: "DI/O1"
-  uio[2]: "DI/O2"
-  uio[3]: "DI/O3"
-  uio[4]: "DI/O4"
-  uio[5]: "DI/O5"
-  uio[6]: "DI/O6"
-  uio[7]: "DI/O7"
+  uio[0]: "START"
+  uio[1]: "RDY"
+  uio[2]: "RQ"
+  uio[3]: "DONE"
+  uio[4]: ""
+  uio[5]: ""
+  uio[6]: ""
+  uio[7]: ""
 
 # Do not change!
 yaml_version: 6

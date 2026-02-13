@@ -69,10 +69,34 @@ module tb;
         clk = ~clk;
         if(count) counter++;
     end
-
+    real fmax, period_min;
+    integer file, r;
+    reg [511:0] line;
     initial begin
         $dumpfile("tb.vcd");
         $dumpvars(0, tb);
+
+        file = $fopen("runs/wokwi/42-openroad-stamidpnr-3/clock.rpt", "r");
+
+        if (file == 0) begin
+            $display("Can't open clock timing file, using 80MHz");
+            fmax = 80;
+        end else begin
+            while (!$feof(file)) begin
+                line = "";
+                r = $fgets(line, file);
+
+                if (r != 0) begin
+                    if ($sscanf(line, "clk period_min = %f fmax = %f",
+                                period_min, fmax) == 2) begin
+                        $display("Found period_min = %f", period_min);
+                        $display("Found fmax       = %f", fmax);
+                    end
+                end
+            end
+        end
+        $fclose(file);
+
         clk = 0;
         rst_n = 0;
         start = 0;
@@ -94,7 +118,9 @@ module tb;
         #10;
 
         $display("\tGot     : %h", hash);
-        $display("\tIn      %0d cycles (%f ns at 80MHz, or %0d KH/s)", counter, counter / 0.080, 80000 / counter);
+        $display("\tIn      %0d cycles (%f ns at %fMHz, or %f KH/s)",
+            counter, counter / (fmax / 1000), fmax, (fmax * 1000) / counter
+        );
 
         $finish;
     end
