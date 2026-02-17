@@ -41,8 +41,7 @@ module sha256d_wrapper (
     wire [3:0] s_addr;
     wire [255:0] s_out;
     assign hash = s_out;
-    reg s_switch;
-    wire [255:0] s_in = (s_switch ? s_out : {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7});
+    wire [255:0] s_in = (state == S_BLOCK2 ? s_out : {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7});
 
     reg [255:0] int_hash;
 
@@ -68,7 +67,6 @@ module sha256d_wrapper (
         if(!rst_n) begin
             s_rdy <= 0;
             s_start <= 0;
-            s_switch <= 0;
             state <= S_IDLE;
             done <= 0;
         end else begin
@@ -102,12 +100,10 @@ module sha256d_wrapper (
             end
             if(s_done) begin
                 if(state == S_BLOCK1) begin
-                    s_switch <= 1;
                     state <= S_BLOCK2;
                     s_start <= 1;
                 end else if(state == S_BLOCK2) begin
                     int_hash <= s_out;
-                    s_switch <= 0;
                     s_start <= 1;
                     state <= S_DOUBLE;
                 end else if(state == S_DOUBLE) begin
@@ -117,7 +113,6 @@ module sha256d_wrapper (
             end else begin
                 if(state == S_IDLE) begin
                     if(start) begin
-                        s_switch <= 0;
                         s_start <= 1;
                         state <= S_BLOCK1;
                     end

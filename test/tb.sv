@@ -76,7 +76,7 @@ module tb;
         $dumpfile("tb.vcd");
         $dumpvars(0, tb);
 
-        file = $fopen("runs/wokwi/42-openroad-stamidpnr-3/clock.rpt", "r");
+        file = $fopen("runs/wokwi/54-openroad-stapostpnr/clock.rpt", "r");
 
         if (file == 0) begin
             $display("Can't open clock timing file, using 80MHz");

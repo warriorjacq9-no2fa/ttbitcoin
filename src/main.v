@@ -35,7 +35,7 @@ module tt_um_bitcoin (
     wire rdy = uio_in[1];
     reg [7:0] w_data;
 
-    assign uo_out = (done ? w_data : {1'b0, s_addr, i[1:0]});
+    assign uo_out = (done ? s_hash[255 - i*8 -: 8] : {1'b0, s_addr, i[1:0]});
     wire [7:0] data = ui_in;
 
     /* SHA256 interface */
