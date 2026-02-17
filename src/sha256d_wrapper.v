@@ -32,7 +32,7 @@ module sha256d_wrapper (
     output reg rq,
 
     // SHA-256 specific
-    output reg [255:0] hash,
+    output wire [255:0] hash,
     output reg done
 );
     reg s_rdy, s_start;
@@ -40,6 +40,7 @@ module sha256d_wrapper (
     reg [31:0] s_data;
     wire [3:0] s_addr;
     wire [255:0] s_out;
+    assign hash = s_out;
     reg s_switch;
     wire [255:0] s_in = (s_switch ? s_out : {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7});
 
@@ -47,8 +48,8 @@ module sha256d_wrapper (
 
     assign addr = {state == S_BLOCK2, s_addr};
 
-    localparam S_IDLE=4'b0000, S_BLOCK1=4'b0001, S_BLOCK2=4'b0010, S_DOUBLE=4'b0100;
-    reg [3:0] state;
+    localparam S_IDLE=0, S_BLOCK1=1, S_BLOCK2=2, S_DOUBLE=3;
+    reg [1:0] state;
 
     sha256_stream s (
         .clk(clk),
@@ -110,7 +111,6 @@ module sha256d_wrapper (
                     s_start <= 1;
                     state <= S_DOUBLE;
                 end else if(state == S_DOUBLE) begin
-                    hash <= s_out;
                     state <= S_IDLE;
                     done <= 1;
                 end
