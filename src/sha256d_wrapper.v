@@ -64,9 +64,6 @@ module sha256d_wrapper (
         .done(s_done)
     );
 
-    // Delay register (for double-block timing)
-    reg d;
-
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             s_rdy <= 0;
