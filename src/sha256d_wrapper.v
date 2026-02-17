@@ -41,15 +41,14 @@ module sha256d_wrapper (
     wire [3:0] s_addr;
     wire [255:0] s_out;
     reg s_switch;
-    wire [255:0] s_in = (s_switch == 0 ? {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7} : s_out);
+    wire [255:0] s_in = (s_switch ? s_out : {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7});
 
-    reg addr_high;
     reg [255:0] int_hash;
 
-    assign addr = {addr_high, s_addr};
+    assign addr = {state == S_BLOCK2, s_addr};
 
-    localparam S_IDLE=0, S_BLOCK1=1, S_BLOCK2=2, S_DOUBLE=3;
-    reg [1:0] state;
+    localparam S_IDLE=4'b0000, S_BLOCK1=4'b0001, S_BLOCK2=4'b0010, S_DOUBLE=4'b0100;
+    reg [3:0] state;
 
     sha256_stream s (
         .clk(clk),
@@ -69,8 +68,6 @@ module sha256d_wrapper (
             s_rdy <= 0;
             s_start <= 0;
             s_switch <= 0;
-            d <= 0;
-            addr_high <= 0;
             state <= S_IDLE;
             done <= 0;
         end else begin
@@ -104,16 +101,11 @@ module sha256d_wrapper (
             end
             if(s_done) begin
                 if(state == S_BLOCK1) begin
-                    // Switch to high 512 bits
-                    addr_high <= 1;
-                    
                     s_switch <= 1;
                     state <= S_BLOCK2;
                     s_start <= 1;
                 end else if(state == S_BLOCK2) begin
                     int_hash <= s_out;
-                    addr_high <= 0;
-
                     s_switch <= 0;
                     s_start <= 1;
                     state <= S_DOUBLE;
