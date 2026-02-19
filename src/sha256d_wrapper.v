@@ -50,7 +50,7 @@ module sha256d_wrapper (
     localparam S_IDLE=0, S_BLOCK1=1, S_BLOCK2=2, S_DOUBLE=3;
     reg [1:0] state;
 
-    sha256_stream s (
+    sha256_unrolled s (
         .clk(clk),
         .rst_n(rst_n),
         .start(s_start),
