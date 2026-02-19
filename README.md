@@ -1,4 +1,4 @@
+[![push](https://github.com/warriorjacq9-no2fa/ttbitcoin/actions/workflows/push.yaml/badge.svg)](https://github.com/warriorjacq9-no2fa/ttbitcoin/actions/workflows/push.yaml)
 # Bitcoin miner for TinyTapeout
 
-This project is a multi-core Bitcoin miner using a SHA256 engine I wrote from scratch. It takes a total of 541 clock cycles per block hash. This gives a throughput of  about 369.7 KH/s with a 200 MHz clock.
-If TinyTapeout supported it, we could use the SKY130 high-speed standard cell library, giving our die a max clock of about 400 MHz, or 736 KH/s. Still not competitive though.
+This project is a single-core Bitcoin miner using a SHA256 engine I wrote from scratch. It takes a total of 980 clock cycles per block hash. This gives a throughput of  about 81.6 KH/s with an 80 MHz clock. It uses a 4-round unrolled SHA256 core and a basic 8/16-bit bus interface.
