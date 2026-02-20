@@ -39,22 +39,22 @@ module sha256_unrolled (
     reg [5:0] i;
 
 
-    wire [31:0] t10 = h + `S1(e) + `ch(e,f,g) + K(i*4) + Wt0;
+    wire [31:0] t10 = h + `S1(e) + `ch(e,f,g) + `K_at(i*4) + Wt0;
     wire [31:0] t20 = `S0(a) + `maj(a,b,c);
     wire [31:0] a1 = t10 + t20;
     wire [31:0] e1 = d + t10;
 
-    wire [31:0] t11 = g + `S1(e1) + `ch(e1, e, f) + K(i*4 +1) + Wt1;
+    wire [31:0] t11 = g + `S1(e1) + `ch(e1, e, f) + `K_at(i*4 +1) + Wt1;
     wire [31:0] t21 = `S0(a1) + `maj(a1,a,b);
     wire [31:0] a2 = t11 + t21;
     wire [31:0] e2 = c + t11;
 
-    wire [31:0] t12 = f + `S1(e2) + `ch(e2, e1, e) + K(i*4 +2) + Wt2;
+    wire [31:0] t12 = f + `S1(e2) + `ch(e2, e1, e) + `K_at(i*4 +2) + Wt2;
     wire [31:0] t22 = `S0(a2) + `maj(a2, a1, a);
     wire [31:0] a3 = t12 + t22;
     wire [31:0] e3 = b + t12;
 
-    wire [31:0] t13 = e + `S1(e3) + `ch(e3, e2, e1) + K(i*4 +3) + Wt3;
+    wire [31:0] t13 = e + `S1(e3) + `ch(e3, e2, e1) + `K_at(i*4 +3) + Wt3;
     wire [31:0] t23 = `S0(a3) + `maj(a3, a2, a1);
     wire [31:0] a4 = t13 + t23;
     wire [31:0] e4 = a + t13;
@@ -111,15 +111,15 @@ module sha256_unrolled (
                     {a, b, c, d, e, f, g, h} <= state_in;
                 end
             end else if(state == S_INIT) begin
-                if(i < 16) begin
-                    if(!rq) begin
-                        rq <= 1;
-                    end else if(rq && rdy) begin
-                        W[i[3:0]] <= data;
-                        rq <= 0;
-                        i <= i + 1;
-                    end
-                end else begin
+                if(i < 16 && !rq) begin
+                    rq <= 1;
+                end
+                if(rq && rdy) begin
+                    W[i[3:0]] <= data;
+                    rq <= 0;
+                    i <= i + 1;
+                end
+                if(i == 16) begin
                     i <= 0;
                     Wptr <= 0;
                     state <= S_COMPUTE;

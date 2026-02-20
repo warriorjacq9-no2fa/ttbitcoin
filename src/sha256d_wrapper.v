@@ -102,11 +102,13 @@ module sha256d_wrapper (
                 if(state == S_BLOCK1) begin
                     state <= S_BLOCK2;
                     s_start <= 1;
-                end else if(state == S_BLOCK2) begin
+                end
+                if(state == S_BLOCK2) begin
                     int_hash <= s_out;
                     s_start <= 1;
                     state <= S_DOUBLE;
-                end else if(state == S_DOUBLE) begin
+                end
+                if(state == S_DOUBLE) begin
                     state <= S_IDLE;
                     done <= 1;
                 end

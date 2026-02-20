@@ -89,11 +89,13 @@ module tt_um_bitcoin (
                     if(read) begin
                         if(i < 4 && !rq) begin
                             rq <= 1;
-                        end else if(rq && rdy) begin
+                        end
+                        if(rq && rdy) begin
                             rq <= 0;
                             s_data[31 - i*8 -: 8] <= data;
                             i <= i + 1;
-                        end else if(i == 4) begin
+                        end
+                        if(i == 4) begin
                             s_rdy <= 1;
                             read <= 0;
                             i <= 0;
@@ -108,10 +110,12 @@ module tt_um_bitcoin (
                 S_WRITE: begin
                     if(i < 32 && !rq) begin
                         rq <= 1;
-                    end else if(rq && rdy) begin
+                    end
+                    if(rq && rdy) begin
                         rq <= 0;
                         i <= i + 1;
-                    end else if(i == 32) begin
+                    end
+                    if(i == 32) begin
                         done <= 0;
                         state <= S_IDLE;
                     end
