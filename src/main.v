@@ -33,7 +33,6 @@ module tt_um_bitcoin (
     reg rq, done;
     assign uio_out = {4'b0, done, rq, 2'b0};
     wire rdy = uio_in[1];
-    reg [7:0] w_data;
 
     assign uo_out = (done ? s_hash[255 - i*8 -: 8] : {1'b0, s_addr, i[1:0]});
     wire [7:0] data = ui_in;
@@ -67,7 +66,6 @@ module tt_um_bitcoin (
         if(!rst_n) begin
             state <= S_IDLE;
             i <= 6'b0;
-            w_data <= 8'b0;
             s_start <= 1'b0;
             s_rdy <= 1'b0;
             d_srq <= 1'b0;
@@ -110,7 +108,6 @@ module tt_um_bitcoin (
                 S_WRITE: begin
                     if(i < 32 && !rq) begin
                         rq <= 1'b1;
-                        w_data <= s_hash[255 - i*8 -: 8];
                     end else if(rq && rdy) begin
                         rq <= 1'b0;
                         i <= i + 1;

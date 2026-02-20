@@ -68,33 +68,34 @@ module sha256_unrolled (
     wire [31:0] e4 = a + t13;
 
     reg [31:0] W [0:15];
+    reg [3:0] Wptr;
     wire [31:0] Wt0 = (i < 4 ? 
         W[i*4] :
-        `s1(W[14]) +
-        W[9] +
-        `s0(W[1]) +
-        W[0]
+        `s1(W[(Wptr + 14) & 4'hf]) +
+        W[(Wptr + 9) & 4'hf] +
+        `s0(W[(Wptr + 1) & 4'hf]) +
+        W[Wptr]
     );
     wire [31:0] Wt1 = (i < 4 ? 
         W[i*4 +1] :
-        `s1(W[15]) +
-        W[10] +
-        `s0(W[2]) +
-        W[1]
+        `s1(W[(Wptr + 15) & 4'hf]) +
+        W[(Wptr + 10) & 4'hf] +
+        `s0(W[(Wptr + 2) & 4'hf]) +
+        W[(Wptr + 1) & 4'hf]
     );
     wire [31:0] Wt2 = (i < 4 ? 
         W[i*4 +2] :
         `s1(Wt0) +
-        W[11] +
-        `s0(W[3]) +
-        W[2]
+        W[(Wptr + 11) & 4'hf] +
+        `s0(W[(Wptr + 3) & 4'hf]) +
+        W[(Wptr + 2) & 4'hf]
     );
     wire [31:0] Wt3 = (i < 4 ? 
         W[i*4 +3] :
         `s1(Wt1) +
-        W[12] +
-        `s0(W[4]) +
-        W[3]
+        W[(Wptr + 12) & 4'hf] +
+        `s0(W[(Wptr + 4) & 4'hf]) +
+        W[(Wptr + 3) & 4'hf]
     );
 
     localparam S_IDLE=0, S_INIT=1, S_COMPUTE=2, S_OUT=3;
@@ -128,6 +129,7 @@ module sha256_unrolled (
                     end
                 end else begin
                     i <= 0;
+                    Wptr <= 0;
                     state <= S_COMPUTE;
                 end
             end else if(state == S_COMPUTE) begin
@@ -141,22 +143,11 @@ module sha256_unrolled (
                 h <= e1;
 
                 if(i >= 4) begin
-                    W[0] <= W[4];
-                    W[1] <= W[5];
-                    W[2] <= W[6];
-                    W[3] <= W[7];
-                    W[4] <= W[8];
-                    W[5] <= W[9];
-                    W[6] <= W[10];
-                    W[7] <= W[11];
-                    W[8] <= W[12];
-                    W[9] <= W[13];
-                    W[10] <= W[14];
-                    W[11] <= W[15];
-                    W[12] <= Wt0;
-                    W[13] <= Wt1;
-                    W[14] <= Wt2;
-                    W[15] <= Wt3;
+                    W[(Wptr + 0) & 4'hf] <= Wt0;
+                    W[(Wptr + 1) & 4'hf] <= Wt1;
+                    W[(Wptr + 2) & 4'hf] <= Wt2;
+                    W[(Wptr + 3) & 4'hf] <= Wt3;
+                    Wptr <= Wptr + 4;
                 end
 
                 if(i == 15) state <= S_OUT;
