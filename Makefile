@@ -2,10 +2,10 @@
 
 SRCS = \
 src/main.v \
+src/macros.v \
 src/sha256_stream.v \
 src/sha256_unrolled.v \
-src/sha256d_wrapper.v \
-src/macros.v
+src/sha256d_wrapper.v
 
 all: tb.vvp
 	vvp $<

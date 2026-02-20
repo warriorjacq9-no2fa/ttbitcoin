@@ -33,18 +33,10 @@ module sha256_unrolled (
     output reg done
 );
 
-    `define rotr(a, n) ({a[(n-1):0], a[31:n]})
-    `define ch(a,b,c) ((a & b) ^ (~a & c))
-    `define maj(a,b,c) ((a & b) ^ (a & c) ^ (b & c))
-    `define S0(a) (`rotr(a, 2) ^ `rotr(a, 13) ^ `rotr(a, 22))
-    `define S1(a) (`rotr(a, 6) ^ `rotr(a, 11) ^ `rotr(a, 25))
-    `define s0(a) (`rotr(a, 7) ^ `rotr(a, 18) ^ {3'b0, a[31:3]})
-    `define s1(a) (`rotr(a, 17) ^ `rotr(a, 19) ^ {10'b0, a[31:10]})
-
     reg [31:0] H0, H1, H2, H3, H4, H5, H6, H7;
     assign state_out[255:0] = {H0, H1, H2, H3, H4, H5, H6, H7};
     reg [31:0] a, b, c, d, e, f, g, h;
-    reg [7:0] i;
+    reg [5:0] i;
 
 
     wire [31:0] t10 = h + `S1(e) + `ch(e,f,g) + K(i*4) + Wt0;
@@ -112,7 +104,7 @@ module sha256_unrolled (
         end else begin
             if(state == S_IDLE) begin
                 done <= 0;
-                i <= 6'b0;
+                i <= 0;
                 if(start) begin
                     state <= S_INIT;
                     {H0, H1, H2, H3, H4, H5, H6, H7} <= state_in;

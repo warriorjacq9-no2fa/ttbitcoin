@@ -78,3 +78,11 @@ localparam  CH0 = 32'h6a09e667,
             CH5 = 32'h9b05688c,
             CH6 = 32'h1f83d9ab,
             CH7 = 32'h5be0cd19;
+
+`define rotr(a, n) ({a[(n-1):0], a[31:n]})
+`define ch(a,b,c) ((a & b) ^ (~a & c))
+`define maj(a,b,c) ((a & b) ^ (a & c) ^ (b & c))
+`define S0(a) (`rotr(a, 2) ^ `rotr(a, 13) ^ `rotr(a, 22))
+`define S1(a) (`rotr(a, 6) ^ `rotr(a, 11) ^ `rotr(a, 25))
+`define s0(a) (`rotr(a, 7) ^ `rotr(a, 18) ^ {3'b0, a[31:3]})
+`define s1(a) (`rotr(a, 17) ^ `rotr(a, 19) ^ {10'b0, a[31:10]})

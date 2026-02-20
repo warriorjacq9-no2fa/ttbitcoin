@@ -56,7 +56,7 @@ module tt_um_bitcoin (
         .done(s_done)
     );
 
-    localparam S_IDLE=2'd0, S_HASH=2'd1, S_WRITE=2'd2;
+    localparam S_IDLE=0, S_HASH=1, S_WRITE=2;
     reg [1:0] state;
 
     reg [5:0] i;
@@ -65,54 +65,54 @@ module tt_um_bitcoin (
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             state <= S_IDLE;
-            i <= 6'b0;
-            s_start <= 1'b0;
-            s_rdy <= 1'b0;
-            d_srq <= 1'b0;
-            rq <= 1'b0;
-            done <= 1'b0;
-            read <= 1'b0;
+            i <= 0;
+            s_start <= 0;
+            s_rdy <= 0;
+            d_srq <= 0;
+            rq <= 0;
+            done <= 0;
+            read <= 0;
         end else begin
             d_srq <= s_rq;
             case(state)
                 S_IDLE: begin
                     if(start) begin
-                        s_start <= 1'b1;
+                        s_start <= 1;
                         state <= S_HASH;
                     end
                 end
                 S_HASH: begin
-                    s_start <= 1'b0;
+                    s_start <= 0;
                     // Handle data requests
-                    s_rdy <= 1'b0;
-                    if(s_rq && !d_srq) read <= 1'b1;
+                    s_rdy <= 0;
+                    if(s_rq && !d_srq) read <= 1;
                     if(read) begin
                         if(i < 4 && !rq) begin
-                            rq <= 1'b1;
+                            rq <= 1;
                         end else if(rq && rdy) begin
-                            rq <= 1'b0;
+                            rq <= 0;
                             s_data[31 - i*8 -: 8] <= data;
                             i <= i + 1;
                         end else if(i == 4) begin
-                            s_rdy <= 1'b1;
-                            read <= 1'b0;
-                            i <= 6'b0;
+                            s_rdy <= 1;
+                            read <= 0;
+                            i <= 0;
                         end
                     end
                     // Handle done
                     if(s_done) begin
-                        done <= 1'b1;
+                        done <= 1;
                         state <= S_WRITE;
                     end
                 end
                 S_WRITE: begin
                     if(i < 32 && !rq) begin
-                        rq <= 1'b1;
+                        rq <= 1;
                     end else if(rq && rdy) begin
-                        rq <= 1'b0;
+                        rq <= 0;
                         i <= i + 1;
                     end else if(i == 32) begin
-                        done <= 1'b0;
+                        done <= 0;
                         state <= S_IDLE;
                     end
                 end
