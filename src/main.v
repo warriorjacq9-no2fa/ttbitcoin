@@ -41,7 +41,6 @@ module tt_um_bitcoin (
     reg [31:0] s_data;
     wire [4:0] s_addr;
     wire s_rq, s_done;
-    reg d_srq;
     reg s_start, s_rdy;
     wire [255:0] s_hash;
     sha256d_wrapper s1 (
@@ -60,32 +59,6 @@ module tt_um_bitcoin (
     reg [1:0] state;
 
     reg [5:0] i;
-    reg read;
-    reg [5:0] r_i;
-
-    always @(posedge clk) begin
-        if(!rst_n) begin
-            r_i <= 0;
-            s_data <= 0;
-            s_rdy <= 0;
-        end else begin
-            if(state == S_HASH) begin
-                s_rdy <= 0;
-                if(s_rq) begin
-                    if(r_i < 4 && !rq) begin
-                        rq <= 1;
-                    end else if(rq && rdy) begin
-                        rq <= 0;
-                        s_data <= {s_data[23:0], data};
-                        r_i <= r_i + 1;
-                    end else if(r_i == 4) begin
-                        s_rdy <= 1;
-                        r_i <= 0;
-                    end
-                end
-            end
-        end
-    end
     
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
@@ -93,12 +66,9 @@ module tt_um_bitcoin (
             i <= 0;
             s_start <= 0;
             s_rdy <= 0;
-            d_srq <= 0;
             rq <= 0;
             done <= 0;
-            read <= 0;
         end else begin
-            d_srq <= s_rq;
             case(state)
                 S_IDLE: begin
                     if(start) begin
@@ -109,23 +79,22 @@ module tt_um_bitcoin (
                 S_HASH: begin
                     s_start <= 0;
                     // Handle data requests
-                    /*s_rdy <= 0;
-                    if(s_rq && !d_srq) read <= 1;
-                    if(read) begin
-                        if(i < 4 && !rq) begin
+                    s_rdy <= 0;
+                    if(s_rq && !s_rdy) begin
+                        if(!rq) begin
                             rq <= 1;
                         end
                         if(rq && rdy) begin
                             rq <= 0;
                             s_data <= {s_data[23:0], data};
                             i <= i + 1;
+                            if(i == 3) begin
+                                s_rdy <= 1;
+                                i <= 0;
+                                rq <= 0;
+                            end
                         end
-                        if(i == 4) begin
-                            s_rdy <= 1;
-                            read <= 0;
-                            i <= 0;
-                        end
-                    end*/
+                    end else if(s_rq && s_rdy) s_rdy <= 0;
                     // Handle done
                     if(s_done) begin
                         done <= 1;

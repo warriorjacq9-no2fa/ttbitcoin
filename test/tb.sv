@@ -48,11 +48,11 @@ module tb;
     reg [4:0] i = 0;
     always @(posedge rq) begin
         if(done) begin
+            hash[(255 - i*8) -: 8] <= data_out;
+            i <= i + 1;
             rdy <= 1;
             #10;
             rdy <= 0;
-            hash[(255 - i*8) -: 8] <= data_out;
-            i <= i + 1;
         end else begin
             data <= block[(639 - addr*8) -: 8];
             addr <= addr + 1;
