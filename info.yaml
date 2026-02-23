@@ -36,14 +36,14 @@ pinout:
   ui[7]: "DI7"
 
   # Outputs
-  uo[0]: "A/DO0"
-  uo[1]: "A/DO1"
-  uo[2]: "A/DO2"
-  uo[3]: "A/DO3"
-  uo[4]: "A/DO4"
-  uo[5]: "A/DO5"
-  uo[6]: "A/DO6"
-  uo[7]: "A/DO7"
+  uo[0]: "DO0"
+  uo[1]: "DO1"
+  uo[2]: "DO2"
+  uo[3]: "DO3"
+  uo[4]: "DO4"
+  uo[5]: "DO5"
+  uo[6]: "DO6"
+  uo[7]: "DO7"
 
   # Bidirectional pins
   uio[0]: "START"

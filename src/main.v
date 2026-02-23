@@ -18,7 +18,7 @@
 
 module tt_um_bitcoin (
     input  wire [7:0] ui_in,    // Dedicated inputs
-    output wire [7:0] uo_out,   // Dedicated outputs
+    output reg [7:0] uo_out,   // Dedicated outputs
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
@@ -33,8 +33,8 @@ module tt_um_bitcoin (
     reg rq, done;
     assign uio_out = {4'b0, done, rq, 2'b0};
     wire rdy = uio_in[1];
+    assign uo_out = s_hash[255 - i*8 -: 8];
 
-    assign uo_out = (done ? s_hash[255 - i*8 -: 8] : {1'b0, s_addr, i[1:0]});
     wire [7:0] data = ui_in;
 
     /* SHA256 interface */
@@ -61,6 +61,31 @@ module tt_um_bitcoin (
 
     reg [5:0] i;
     reg read;
+    reg [5:0] r_i;
+
+    always @(posedge clk) begin
+        if(!rst_n) begin
+            r_i <= 0;
+            s_data <= 0;
+            s_rdy <= 0;
+        end else begin
+            if(state == S_HASH) begin
+                s_rdy <= 0;
+                if(s_rq) begin
+                    if(r_i < 4 && !rq) begin
+                        rq <= 1;
+                    end else if(rq && rdy) begin
+                        rq <= 0;
+                        s_data <= {s_data[23:0], data};
+                        r_i <= r_i + 1;
+                    end else if(r_i == 4) begin
+                        s_rdy <= 1;
+                        r_i <= 0;
+                    end
+                end
+            end
+        end
+    end
     
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
@@ -84,7 +109,7 @@ module tt_um_bitcoin (
                 S_HASH: begin
                     s_start <= 0;
                     // Handle data requests
-                    s_rdy <= 0;
+                    /*s_rdy <= 0;
                     if(s_rq && !d_srq) read <= 1;
                     if(read) begin
                         if(i < 4 && !rq) begin
@@ -92,7 +117,7 @@ module tt_um_bitcoin (
                         end
                         if(rq && rdy) begin
                             rq <= 0;
-                            s_data[31 - i*8 -: 8] <= data;
+                            s_data <= {s_data[23:0], data};
                             i <= i + 1;
                         end
                         if(i == 4) begin
@@ -100,7 +125,7 @@ module tt_um_bitcoin (
                             read <= 0;
                             i <= 0;
                         end
-                    end
+                    end*/
                     // Handle done
                     if(s_done) begin
                         done <= 1;

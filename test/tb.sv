@@ -28,14 +28,15 @@ module tb;
     reg [255:0] hash;
 
     reg [7:0] data;
-    wire [7:0] addr;
+    wire [7:0] data_out;
+    reg [7:0] addr = 0;
     wire [5:0] pad;
 
     tt_um_bitcoin dut (
         .clk(clk),
         .rst_n(rst_n),
         .ui_in(data),
-        .uo_out(addr),
+        .uo_out(data_out),
         .uio_in({6'b0, rdy, start}),
         .uio_out({pad[5:2], done, rq, pad[1:0]})
     );
@@ -50,10 +51,11 @@ module tb;
             rdy <= 1;
             #10;
             rdy <= 0;
-            hash[(255 - i*8) -: 8] <= addr;
+            hash[(255 - i*8) -: 8] <= data_out;
             i <= i + 1;
         end else begin
             data <= block[(639 - addr*8) -: 8];
+            addr <= addr + 1;
             rdy <= 1;
             #10;
             rdy <= 0;

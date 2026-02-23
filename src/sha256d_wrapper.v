@@ -63,55 +63,49 @@ module sha256d_wrapper (
         .done(s_done)
     );
 
+    always @(*) begin
+        s_data <= 0;
+        s_rdy <= 0;
+        rq <= 0;
+        if(s_rq) begin
+            if(state == S_BLOCK2 && addr[3:0] > 3) begin
+                case (addr[3:0])
+                    4:          s_data <= 32'h80000000;
+                    15:         s_data <= 32'h00000280;
+                    default:    s_data <= 32'h00000000;
+                endcase
+                s_rdy <= 1;
+            end else if(state == S_DOUBLE) begin
+                if(addr[3:0] < 8) begin
+                    s_data <= int_hash[(255 - addr[3:0]*32) -: 32];
+                end else begin
+                    case(addr[3:0])
+                        8:          s_data <= 32'h80000000;
+                        15:         s_data <= 32'h00000100;
+                        default:    s_data <= 32'h00000000;
+                    endcase
+                end
+                s_rdy <= 1;
+            end else begin
+                s_data <= data;
+                s_rdy <= rdy;
+                rq <= 1;
+            end
+        end
+    end
+
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-            s_rdy <= 0;
             s_start <= 0;
             state <= S_IDLE;
             done <= 0;
         end else begin
-            if(s_rq) begin
-                if(state == S_BLOCK2 && addr[3:0] > 3) begin
-                    case (addr[3:0])
-                        4:          s_data <= 32'h80000000;
-                        15:         s_data <= 32'h00000280;
-                        default:    s_data <= 32'h00000000;
-                    endcase
-                    s_rdy <= 1;
-                end else if(state == S_DOUBLE) begin
-                    if(addr[3:0] < 8) begin
-                        s_data <= int_hash[(255 - addr[3:0]*32) -: 32];
-                    end else begin
-                        case(addr[3:0])
-                            8:          s_data <= 32'h80000000;
-                            15:         s_data <= 32'h00000100;
-                            default:    s_data <= 32'h00000000;
-                        endcase
-                    end
-                    s_rdy <= 1;
-                end else begin
-                    s_data <= data;
-                    s_rdy <= rdy;
-                    rq <= 1;
-                end
-            end else begin
-                s_rdy <= 0;
-                rq <= 0;
-            end
             if(s_done) begin
-                if(state == S_BLOCK1) begin
-                    state <= S_BLOCK2;
-                    s_start <= 1;
-                end
-                if(state == S_BLOCK2) begin
-                    int_hash <= s_out;
-                    s_start <= 1;
-                    state <= S_DOUBLE;
-                end
-                if(state == S_DOUBLE) begin
-                    state <= S_IDLE;
-                    done <= 1;
-                end
+                case(state)
+                    S_BLOCK1: begin state <= S_BLOCK2; s_start <= 1; end
+                    S_BLOCK2: begin int_hash <= s_out; s_start <= 1; state <= S_DOUBLE; end
+                    S_DOUBLE: begin state <= S_IDLE; done <= 1; end
+                endcase
             end else begin
                 if(state == S_IDLE) begin
                     if(start) begin
