@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-module sha256_unrolled (
+module sha256_stream (
     // Control signals
     input wire clk, rst_n,
     input wire start,
@@ -33,61 +33,29 @@ module sha256_unrolled (
     output reg done
 );
 
+    wire [31:0] ch_e = `ch(e,f,g);
+    wire [31:0] maj_a = `maj(a,b,c);
+
+    wire [31:0] S0_a = `S0(a);
+    wire [31:0] S1_e = `S1(e);
+
     reg [31:0] H0, H1, H2, H3, H4, H5, H6, H7;
-    assign state_out[255:0] = {H0, H1, H2, H3, H4, H5, H6, H7};
     reg [31:0] a, b, c, d, e, f, g, h;
+    assign state_out[255:0] = {H0, H1, H2, H3, H4, H5, H6, H7};
     reg [5:0] i;
 
-
-    wire [31:0] t10 = h + `S1(e) + `ch(e,f,g) + `K_at(i*4) + Wt0;
-    wire [31:0] t20 = `S0(a) + `maj(a,b,c);
-    wire [31:0] a1 = t10 + t20;
-    wire [31:0] e1 = d + t10;
-
-    wire [31:0] t11 = g + `S1(e1) + `ch(e1, e, f) + `K_at(i*4 +1) + Wt1;
-    wire [31:0] t21 = `S0(a1) + `maj(a1,a,b);
-    wire [31:0] a2 = t11 + t21;
-    wire [31:0] e2 = c + t11;
-
-    wire [31:0] t12 = f + `S1(e2) + `ch(e2, e1, e) + `K_at(i*4 +2) + Wt2;
-    wire [31:0] t22 = `S0(a2) + `maj(a2, a1, a);
-    wire [31:0] a3 = t12 + t22;
-    wire [31:0] e3 = b + t12;
-
-    wire [31:0] t13 = e + `S1(e3) + `ch(e3, e2, e1) + `K_at(i*4 +3) + Wt3;
-    wire [31:0] t23 = `S0(a3) + `maj(a3, a2, a1);
-    wire [31:0] a4 = t13 + t23;
-    wire [31:0] e4 = a + t13;
-
+    /* Combinational calculations */
+    wire [31:0] t1 = h + S1_e + ch_e + 
+                        `K_at(i) + Wt;
+    wire [31:0] t2 = S0_a + maj_a;
     reg [31:0] W [0:15];
     reg [3:0] Wptr;
-    wire [31:0] Wt0 = (i < 4 ? 
-        W[i*4] :
-        `s1(W[(Wptr + 14) & 4'hf]) +
-        W[(Wptr + 9) & 4'hf] +
-        `s0(W[(Wptr + 1) & 4'hf]) +
+    wire [31:0] Wt = (i < 16 ? 
+        W[i[3:0]] :
+        `s1(W[(Wptr + 14) & 4'hF]) +
+        W[(Wptr + 9) & 4'hF] +
+        `s0(W[(Wptr + 1) & 4'hF]) +
         W[Wptr]
-    );
-    wire [31:0] Wt1 = (i < 4 ? 
-        W[i*4 +1] :
-        `s1(W[(Wptr + 15) & 4'hf]) +
-        W[(Wptr + 10) & 4'hf] +
-        `s0(W[(Wptr + 2) & 4'hf]) +
-        W[(Wptr + 1) & 4'hf]
-    );
-    wire [31:0] Wt2 = (i < 4 ? 
-        W[i*4 +2] :
-        `s1(Wt0) +
-        W[(Wptr + 11) & 4'hf] +
-        `s0(W[(Wptr + 3) & 4'hf]) +
-        W[(Wptr + 2) & 4'hf]
-    );
-    wire [31:0] Wt3 = (i < 4 ? 
-        W[i*4 +3] :
-        `s1(Wt1) +
-        W[(Wptr + 12) & 4'hf] +
-        `s0(W[(Wptr + 4) & 4'hf]) +
-        W[(Wptr + 3) & 4'hf]
     );
 
     localparam S_IDLE=0, S_INIT=1, S_COMPUTE=2, S_OUT=3;
@@ -125,25 +93,22 @@ module sha256_unrolled (
                     state <= S_COMPUTE;
                 end
             end else if(state == S_COMPUTE) begin
-                a <= a4;
-                b <= a3;
-                c <= a2;
-                d <= a1;
-                e <= e4;
-                f <= e3;
-                g <= e2;
-                h <= e1;
+                h <= g;
+                g <= f;
+                f <= e;
+                e <= d + t1;
+                d <= c;
+                c <= b;
+                b <= a;
+                a <= t1 + t2;
 
-                if(i >= 4) begin
-                    W[(Wptr + 0) & 4'hf] <= Wt0;
-                    W[(Wptr + 1) & 4'hf] <= Wt1;
-                    W[(Wptr + 2) & 4'hf] <= Wt2;
-                    W[(Wptr + 3) & 4'hf] <= Wt3;
-                    Wptr <= Wptr + 4;
+                if(i >= 16) begin
+                    W[Wptr] <= Wt;
+                    Wptr <= Wptr + 1;
                 end
 
-                if(i == 15) state <= S_OUT;
-                else i <= i + 1;
+                if(i == 63) state <= S_OUT;
+                i <= i + 1;
                 
             end else if(state == S_OUT) begin
                 H0 <= a + H0;

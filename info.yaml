@@ -19,7 +19,7 @@ project:
   source_files:
     - "main.v"
     - "macros.v"
-    - "sha256_unrolled.v"
+    - "sha256_stream.v"
     - "sha256d_wrapper.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
