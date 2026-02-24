@@ -46,7 +46,7 @@ module sha256_stream (
 
     /* Combinational calculations */
     wire [31:0] t1 = h + S1_e + ch_e + 
-                        `K_at(i) + Wt;
+                        K(i) + Wt;
     wire [31:0] t2 = S0_a + maj_a;
     reg [31:0] W [0:15];
     reg [3:0] Wptr;
