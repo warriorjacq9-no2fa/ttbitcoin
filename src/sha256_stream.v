@@ -75,8 +75,6 @@ module sha256_stream (
                 i <= 0;
                 if(start) begin
                     state <= S_INIT;
-                    {H0, H1, H2, H3, H4, H5, H6, H7} <= state_in;
-                    {a, b, c, d, e, f, g, h} <= state_in;
                 end
             end else if(state == S_INIT) begin
                 if(i < 16 && !rq) begin
@@ -90,6 +88,8 @@ module sha256_stream (
                 if(i == 16) begin
                     i <= 0;
                     Wptr <= 0;
+                    {H0, H1, H2, H3, H4, H5, H6, H7} <= state_in;
+                    {a, b, c, d, e, f, g, h} <= state_in;
                     state <= S_COMPUTE;
                 end
             end else if(state == S_COMPUTE) begin

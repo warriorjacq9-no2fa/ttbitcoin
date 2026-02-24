@@ -35,15 +35,16 @@ module sha256d_wrapper (
     output wire [255:0] hash,
     output reg done
 );
-    reg s_rdy, s_start;
+    reg s_rdy;
+    wire s_start = (state == S_IDLE && start) || 
+                 (s_done && state == S_BLOCK1) ||
+                 (s_done && state == S_BLOCK2);
     wire s_rq, s_done;
     reg [31:0] s_data;
     wire [3:0] s_addr;
     wire [255:0] s_out;
     assign hash = s_out;
     wire [255:0] s_in = (state == S_BLOCK2 ? s_out : {CH0, CH1, CH2, CH3, CH4, CH5, CH6, CH7});
-
-    reg [255:0] int_hash;
 
     assign addr = {state == S_BLOCK2, s_addr};
 
@@ -77,7 +78,7 @@ module sha256d_wrapper (
                 s_rdy = 1;
             end else if(state == S_DOUBLE) begin
                 if(addr[3:0] < 8) begin
-                    s_data = int_hash[(255 - addr[3:0]*32) -: 32];
+                    s_data = s_out[(255 - addr[3:0]*32) -: 32];
                 end else begin
                     case(addr[3:0])
                         8:          s_data = 32'h80000000;
@@ -96,23 +97,21 @@ module sha256d_wrapper (
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-            s_start <= 0;
             state <= S_IDLE;
             done <= 0;
         end else begin
             if(s_done) begin
                 case(state)
-                    S_BLOCK1: begin state <= S_BLOCK2; s_start <= 1; end
-                    S_BLOCK2: begin int_hash <= s_out; s_start <= 1; state <= S_DOUBLE; end
+                    S_BLOCK1: begin state <= S_BLOCK2; end
+                    S_BLOCK2: begin state <= S_DOUBLE; end
                     S_DOUBLE: begin state <= S_IDLE; done <= 1; end
                 endcase
             end else begin
                 if(state == S_IDLE) begin
                     if(start) begin
-                        s_start <= 1;
                         state <= S_BLOCK1;
                     end
-                end else s_start <= 0;
+                end
             end
         end
     end
