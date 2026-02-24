@@ -30,18 +30,18 @@ module tt_um_bitcoin (
     /* External interface */
     assign uio_oe = 8'b00001100;
     wire start = uio_in[0];
+    wire rdy = uio_in[1];
     reg rq, done;
     assign uio_out = {4'b0, done, rq, 2'b0};
-    wire rdy = uio_in[1];
     assign uo_out = s_hash[255 - i*8 -: 8];
 
     wire [7:0] data = ui_in;
 
     /* SHA256 interface */
     reg [31:0] s_data;
-    wire [4:0] s_addr;
-    wire s_rq, s_done;
-    reg s_start, s_rdy;
+    wire s_rq, s_done, s_start;
+    assign s_start = (state == S_IDLE && start);
+    reg s_rdy;
     wire [255:0] s_hash;
     sha256d_wrapper s1 (
         .clk(clk),
@@ -49,7 +49,6 @@ module tt_um_bitcoin (
         .start(s_start),
         .rdy(s_rdy),
         .data(s_data),
-        .addr(s_addr),
         .rq(s_rq),
         .hash(s_hash),
         .done(s_done)
@@ -64,7 +63,6 @@ module tt_um_bitcoin (
         if(!rst_n) begin
             state <= S_IDLE;
             i <= 0;
-            s_start <= 0;
             s_rdy <= 0;
             rq <= 0;
             done <= 0;
@@ -72,12 +70,10 @@ module tt_um_bitcoin (
             case(state)
                 S_IDLE: begin
                     if(start) begin
-                        s_start <= 1;
                         state <= S_HASH;
                     end
                 end
                 S_HASH: begin
-                    s_start <= 0;
                     // Handle data requests
                     s_rdy <= 0;
                     if(s_rq && !s_rdy) begin
@@ -119,6 +115,6 @@ module tt_um_bitcoin (
         end
     end
 
-    wire _unused = &{s_addr, uio_in[7:2], ena};
+    wire _unused = &{uio_in[7:2], ena};
 
 endmodule

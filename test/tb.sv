@@ -31,8 +31,16 @@ module tb;
     wire [7:0] data_out;
     reg [7:0] addr = 0;
     wire [5:0] pad;
+`ifdef GL_TEST
+    wire VPWR = 1'b1;
+    wire VGND = 1'b0;
+`endif
 
     tt_um_bitcoin dut (
+`ifdef GL_TEST
+        .VPWR(VPWR),
+        .VGND(VGND),
+`endif
         .clk(clk),
         .rst_n(rst_n),
         .ui_in(data),
