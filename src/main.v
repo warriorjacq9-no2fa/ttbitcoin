@@ -57,7 +57,7 @@ module tt_um_bitcoin (
     localparam S_IDLE=0, S_HASH=1, S_WRITE=2;
     reg [1:0] state;
 
-    reg [5:0] i;
+    reg [4:0] i;
     
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
@@ -84,13 +84,13 @@ module tt_um_bitcoin (
                             rq <= 0;
                             s_data <= {s_data[23:0], data};
                             i <= i + 1;
-                            if(i == 3) begin
+                            if(i[1:0] == 3) begin
                                 s_rdy <= 1;
                                 i <= 0;
                                 rq <= 0;
                             end
                         end
-                    end else if(s_rq && s_rdy) s_rdy <= 0;
+                    end
                     // Handle done
                     if(s_done) begin
                         done <= 1;
@@ -104,10 +104,10 @@ module tt_um_bitcoin (
                     if(rq && rdy) begin
                         rq <= 0;
                         i <= i + 1;
-                    end
-                    if(i == 32) begin
-                        done <= 0;
-                        state <= S_IDLE;
+                        if(i == 31) begin
+                            done <= 0;
+                            state <= S_IDLE;
+                        end
                     end
                 end
                 default: state <= S_IDLE;
