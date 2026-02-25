@@ -67,6 +67,8 @@ module sha256_stream (
         if(!rst_n) begin
             rq <= 0;
             done <= 0;
+            i <= 0;
+            Wptr <= 0;
             // State machine
             state <= S_IDLE;
         end else begin
