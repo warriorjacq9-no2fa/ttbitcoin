@@ -39,6 +39,7 @@ module tt_um_bitcoin (
 
     /* SHA256 interface */
     reg [31:0] s_data;
+    wire [4:0] s_addr;
     wire s_rq, s_done, s_start;
     assign s_start = (state == S_IDLE && start);
     reg s_rdy;
@@ -49,6 +50,7 @@ module tt_um_bitcoin (
         .start(s_start),
         .rdy(s_rdy),
         .data(s_data),
+        .addr(s_addr),
         .rq(s_rq),
         .hash(s_hash),
         .done(s_done)
@@ -98,7 +100,7 @@ module tt_um_bitcoin (
                     end
                 end
                 S_WRITE: begin
-                    if(i < 32 && !rq) begin
+                    if(!rq) begin
                         rq <= 1;
                     end
                     if(rq && rdy) begin
@@ -115,6 +117,6 @@ module tt_um_bitcoin (
         end
     end
 
-    wire _unused = &{uio_in[7:2], ena};
+    wire _unused = &{s_addr, uio_in[7:2], ena};
 
 endmodule
