@@ -49,13 +49,12 @@ module sha256_stream (
                         K(i) + Wt;
     wire [31:0] t2 = S0_a + maj_a;
     reg [31:0] W [0:15];
-    reg [3:0] Wptr;
     wire [31:0] Wt = (i < 16 ? 
         W[i[3:0]] :
-        `s1(W[(Wptr + 14) & 4'hF]) +
-        W[(Wptr + 9) & 4'hF] +
-        `s0(W[(Wptr + 1) & 4'hF]) +
-        W[Wptr]
+        `s1(W[14]) +
+        W[9] +
+        `s0(W[1]) +
+        W[0]
     );
 
     localparam S_IDLE=0, S_INIT=1, S_COMPUTE=2, S_OUT=3;
@@ -68,7 +67,6 @@ module sha256_stream (
             rq <= 0;
             done <= 0;
             i <= 0;
-            Wptr <= 0;
             // State machine
             state <= S_IDLE;
         end else begin
@@ -79,20 +77,19 @@ module sha256_stream (
                     state <= S_INIT;
                 end
             end else if(state == S_INIT) begin
-                if(i < 16 && !rq) begin
+                if(!rq) begin
                     rq <= 1;
                 end
                 if(rq && rdy) begin
                     W[i[3:0]] <= data;
                     rq <= 0;
                     i <= i + 1;
-                end
-                if(i == 16) begin
-                    i <= 0;
-                    Wptr <= 0;
-                    {H0, H1, H2, H3, H4, H5, H6, H7} <= state_in;
-                    {a, b, c, d, e, f, g, h} <= state_in;
-                    state <= S_COMPUTE;
+                    if(i == 15) begin
+                        i <= 0;
+                        {H0, H1, H2, H3, H4, H5, H6, H7} <= state_in;
+                        {a, b, c, d, e, f, g, h} <= state_in;
+                        state <= S_COMPUTE;
+                    end
                 end
             end else if(state == S_COMPUTE) begin
                 h <= g;
@@ -105,8 +102,22 @@ module sha256_stream (
                 a <= t1 + t2;
 
                 if(i >= 16) begin
-                    W[Wptr] <= Wt;
-                    Wptr <= Wptr + 1;
+                    W[0] <= W[1];
+                    W[1] <= W[2];
+                    W[2] <= W[3];
+                    W[3] <= W[4];
+                    W[4] <= W[5];
+                    W[5] <= W[6];
+                    W[6] <= W[7];
+                    W[7] <= W[8];
+                    W[8] <= W[9];
+                    W[9] <= W[10];
+                    W[10] <= W[11];
+                    W[11] <= W[12];
+                    W[12] <= W[13];
+                    W[13] <= W[14];
+                    W[14] <= W[15];
+                    W[15] <= Wt;
                 end
 
                 if(i == 63) state <= S_OUT;
